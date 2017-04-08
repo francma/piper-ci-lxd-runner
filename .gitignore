@@ -1,2 +1,7 @@
 /.idea
 __pycache__
+.cache
+.eggs
+.tox
+logging
+*.egg-info

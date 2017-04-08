@@ -39,7 +39,7 @@ class AsyncCommand:
             'command': commands,
             'wait-for-websocket': True,
             'interactive': False,
-            'environment': {},
+            'environment': env,
         })
 
         fds = response.json()['metadata']['metadata']['fds']
@@ -58,11 +58,11 @@ class AsyncCommand:
         self.manager = WebSocketManager()
         self.manager.start()
 
-        stdout = self.WebSocket(self.manager, stdout_handler, 'ws+unix:///var/lib/lxd/unix.socket')
+        stdout = self.WebSocket(self.manager, stdout_handler, self.client.websocket_url)
         stdout.resource = stdout_url
         stdout.connect()
 
-        stderr = self.WebSocket(self.manager, stderr_handler, 'ws+unix:///var/lib/lxd/unix.socket')
+        stderr = self.WebSocket(self.manager, stderr_handler, self.client.websocket_url)
         stderr.resource = stderr_url
         stderr.connect()
 

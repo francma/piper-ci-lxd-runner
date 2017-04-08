@@ -1,0 +1,10 @@
+{
+  "commands": [
+    "echo START",
+    "sleep 5",
+    "echo END"
+  ],
+  "config": {
+    "image": "alpine/3.5"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "commands": [
+    "pwd",
+    "mkdir test",
+    "cd test",
+    "pwd"
+  ],
+  "config": {
+    "image": "alpine/3.5"
+  }
+}

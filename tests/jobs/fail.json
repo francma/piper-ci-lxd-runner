@@ -1,0 +1,9 @@
+{
+  "commands": [
+    "false",
+    "echo 'THIS SHOULD NOT BE EXECUTED!'"
+  ],
+  "config": {
+    "image": "alpine/3.5"
+  }
+}

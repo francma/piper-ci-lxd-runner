@@ -6,11 +6,19 @@ def read(fname):
     with open(os.path.join(os.path.dirname(__file__), fname)) as f:
         return f.read()
 
+
+test_requirements_file = os.path.join('requirements', 'development.txt')
+if os.path.isfile(test_requirements_file):
+    with open(test_requirements_file) as fh:
+        tests_require = fh.read().splitlines()
+else:
+    tests_require = ['pytest>=3.0']
+
 long_description = ""
 
 setup(
     name='piper_lxd',
-    version='0.1',
+    version='0.11',
     description='Piper CI LXD Runner',
     long_description=long_description,
     packages=find_packages(),
@@ -33,8 +41,16 @@ setup(
     zip_safe=False,
     entry_points={
           'console_scripts': [
-              'piper_lxd = piper_lxd.run:main'
+              'piper_lxd = piper_lxd.run:run'
           ]
       },
-    install_requires=read('requirements/production.txt').splitlines(),
+    install_requires=[
+        'pylxd',
+        'ws4py',
+        'click',
+    ],
+    setup_requires=[
+        'pytest-runner',
+    ],
+    tests_require=tests_require,
 )
