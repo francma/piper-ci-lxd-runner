@@ -4,7 +4,13 @@ from typing import Dict, List
 class Job:
 
     COMMAND_START = 'printf "::piper_lxd-ci:command:{}:start:%d::\n" `date +%s`'
-    COMMAND_END = 'd3d8972793203a4505634f7c3607b4e3697862a=$?; printf "::piper_lxd-ci:command:{}:end:%d:%d::\n" `date +%s` $d3d8972793203a4505634f7c3607b4e3697862a; if [[ $d3d8972793203a4505634f7c3607b4e3697862a != 0 ]]; then exit $d3d8972793203a4505634f7c3607b4e3697862a; fi'
+    COMMAND_END = ''.join([
+        'd3d8972793203a4505634f7c3607b4e3697862a=$?;',
+        'printf "::piper_lxd-ci:command:{}:end:%d:%d::\n" `date +%s` $d3d8972793203a4505634f7c3607b4e3697862a;',
+        'if [[ $d3d8972793203a4505634f7c3607b4e3697862a != 0 ]];',
+        'then exit $d3d8972793203a4505634f7c3607b4e3697862a;',
+        'fi'
+    ])
 
     def __init__(self, commands: List[str], secret: str, image: str, env: Dict[str, str]):
         self._commands = commands
