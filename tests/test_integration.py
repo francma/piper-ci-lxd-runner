@@ -8,6 +8,8 @@ import tempfile
 import signal
 import re
 
+from piper_lxd.runner import Runner
+
 
 def start_dummy_server(test_key, jobs=[]):
     cwd = os.path.dirname(os.path.realpath(__file__))
@@ -201,15 +203,124 @@ def test_fail(connect):
         assert fp.readline() == ''
 
 
-# @pytest.mark.parametrize(
-#     'connect',
-#     [[
-#         get_test_key(),
-#         ['not_json']
-#     ]],
-#     indirect=True
-# )
-# def test_not_json(connect):
-#     server, worker, test_key, jobs, tempdir = connect
-#     completed, failed = wait_until_finished(test_key, jobs)
-#     assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(failed, completed)
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
+        ['no_commands']
+    ]],
+    indirect=True
+)
+def test_no_commands(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(jobs, failed)
+    assert len(completed) == 0
+    with open(os.path.join(tempdir, 'job', 'no_commands')) as fd:
+        assert fd.readline() == Runner.FAIL_NO_COMMANDS
+        assert fd.readline() == ''
+
+
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
+        ['commands_not_list']
+    ]],
+    indirect=True
+)
+def test_commands_not_list(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(jobs, failed)
+    assert len(completed) == 0
+    with open(os.path.join(tempdir, 'job', 'commands_not_list')) as fd:
+        assert fd.readline() == Runner.FAIL_COMMANDS_NOT_LIST
+        assert fd.readline() == ''
+
+
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
+        ['no_config']
+    ]],
+    indirect=True
+)
+def test_no_config(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(jobs, failed)
+    assert len(completed) == 0
+    with open(os.path.join(tempdir, 'job', 'no_config')) as fd:
+        assert fd.readline() == Runner.FAIL_CONFIG_MISSING
+        assert fd.readline() == ''
+
+
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
+        ['config_not_dict']
+    ]],
+    indirect=True
+)
+def test_config_not_dict(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(jobs, failed)
+    assert len(completed) == 0
+    with open(os.path.join(tempdir, 'job', 'config_not_dict')) as fd:
+        assert fd.readline() == Runner.FAIL_CONFIG_NOT_DICT
+        assert fd.readline() == ''
+
+
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
+        ['no_image']
+    ]],
+    indirect=True
+)
+def test_no_image(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(jobs, failed)
+    assert len(completed) == 0
+    with open(os.path.join(tempdir, 'job', 'no_image')) as fd:
+        assert fd.readline() == Runner.FAIL_NO_IMAGE
+        assert fd.readline() == ''
+
+
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
+        ['image_not_str']
+    ]],
+    indirect=True
+)
+def test_image_not_str(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(jobs, failed)
+    assert len(completed) == 0
+    with open(os.path.join(tempdir, 'job', 'image_not_str')) as fd:
+        assert fd.readline() == Runner.FAIL_IMAGE_NOT_STR
+        assert fd.readline() == ''
+
+
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
+        ['image_not_found']
+    ]],
+    indirect=True
+)
+def test_image_not_found(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(jobs, failed)
+    assert len(completed) == 0

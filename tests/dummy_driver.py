@@ -3,8 +3,8 @@ import flask
 from flask_uwsgi_websocket import WebSocket
 import os
 import portalocker
-import json
 import tempfile
+import json
 
 app = flask.Flask(__name__)
 ws = WebSocket(app)
@@ -95,10 +95,10 @@ def write_build(socket):
     handler.receive()
 
 
-@app.route('/job/fail/<secret>')
+@app.route('/job/error/<secret>', methods=['POST'])
 def build_fail(secret):
     path = os.path.join(BUILD_LOG_FOLDER, str(secret))
-    open(path + '-failed', 'w').close()
     with open(path, 'w') as fd:
-        reason = flask.request.get_json()
-        fd.write(reason)
+        js = flask.request.get_json()
+        fd.write(js['reason'])
+    open(path + '-failed', 'w').close()

@@ -1,9 +1,9 @@
 import uuid
 import pylxd
+import pylxd.exceptions
 import requests
 import logging
 import os
-
 from time import sleep
 
 from piper_lxd.websocket_handler import WebSocketHandler
@@ -11,7 +11,22 @@ from piper_lxd.async_command import AsyncCommand
 from piper_lxd.job import Job
 
 
+class PiperException(Exception):
+    pass
+
+
+class ImageNotFoundException(PiperException):
+    pass
+
+
 class Runner:
+
+    FAIL_NO_COMMANDS = 'No commands found'
+    FAIL_COMMANDS_NOT_LIST = 'type(commands) should be list'
+    FAIL_CONFIG_MISSING = 'No config found'
+    FAIL_CONFIG_NOT_DICT = 'Config should be dict'
+    FAIL_NO_IMAGE = 'No image found in config'
+    FAIL_IMAGE_NOT_STR = 'Image should be str'
 
     def __init__(
             self,
@@ -57,27 +72,32 @@ class Runner:
             secret = job['secret']
 
             if 'commands' not in job:
-                # FIXME report
+                self._report_fail(secret, self.FAIL_NO_COMMANDS)
                 sleep(self._runner_interval)
                 continue
 
             if type(job['commands']) is not list:
-                # FIXME report
+                self._report_fail(secret, self.FAIL_COMMANDS_NOT_LIST)
                 sleep(self._runner_interval)
                 continue
 
             if 'config' not in job:
-                # FIXME report
+                self._report_fail(secret, self.FAIL_CONFIG_MISSING)
                 sleep(self._runner_interval)
                 continue
 
             if type(job['config']) is not dict:
-                # FIXME report
+                self._report_fail(secret, self.FAIL_CONFIG_NOT_DICT)
                 sleep(self._runner_interval)
                 continue
 
             if 'image' not in job['config']:
-                # FIXME report
+                self._report_fail(secret, self.FAIL_NO_IMAGE)
+                sleep(self._runner_interval)
+                continue
+
+            if type(job['config']['image']) is not str:
+                self._report_fail(secret, self.FAIL_IMAGE_NOT_STR)
                 sleep(self._runner_interval)
                 continue
 
@@ -92,7 +112,10 @@ class Runner:
                 image=image
             )
 
-            self._execute(_job)
+            try:
+                self._execute(_job)
+            except ImageNotFoundException:
+                self._report_fail(secret, 'Image {} not found'.format(image))
 
     def _execute(self, job: Job):
         # prepare container
@@ -102,7 +125,12 @@ class Runner:
             'profiles': self.lxd_profiles,
             'source': job.lxd_source,
         }
-        container = self._client.containers.create(container_config, wait=True)
+
+        try:
+            container = self._client.containers.create(container_config, wait=True)
+        except pylxd.exceptions.LXDAPIException as e:
+            raise ImageNotFoundException
+
         container.start(wait=True)
 
         # execute script
@@ -113,6 +141,12 @@ class Runner:
         # delete container
         container.stop(wait=True)
         container.delete()
+
+    def _report_fail(self, secret, message):
+        js = {
+            'reason': message,
+        }
+        requests.post(self.error_job_url(secret), json=js)
 
     @property
     def ws_base_url(self):
@@ -126,8 +160,8 @@ class Runner:
     def fetch_job_url(self):
         return '{}/job/pop/{}'.format(self.base_url, self._runner_token)
 
-    def fail_job_url(self, secret):
-        return '{}/job/fail/{}'.format(self.base_url, secret)
+    def error_job_url(self, secret):
+        return '{}/job/error/{}'.format(self.base_url, secret)
 
     def ws_write_url(self, secret):
         return '{}{}'.format(self.ws_base_url, self.ws_write_resource(secret))
