@@ -207,6 +207,31 @@ def test_fail(connect):
     'connect',
     [[
         get_test_key(),
+        ['after_failure']
+    ]],
+    indirect=True
+)
+def test_after_failure(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(completed) == sorted(jobs), "expected {}, got {}".format(jobs, completed)
+
+    with open(os.path.join(tempdir, 'job', 'after_failure')) as fp:
+        assert re.match(r'^::piper_lxd-ci:command:0:start:\d+::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:command:1:start:\d+::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:command:1:end:\d+:1::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:after_failure:0:start:\d+::$', fp.readline())
+        assert fp.readline().strip() == '1'
+        assert re.match(r'^::piper_lxd-ci:after_failure:0:end:\d+:0::$', fp.readline())
+
+        assert fp.readline() == ''
+
+
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
         ['multiple_1', 'multiple_2', 'multiple_3']
     ]],
     indirect=True
@@ -356,3 +381,21 @@ def test_image_not_found(connect):
     completed, failed = wait_until_finished(test_key, jobs)
     assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(jobs, failed)
     assert len(completed) == 0
+
+
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
+        ['after_failure_not_list']
+    ]],
+    indirect=True
+)
+def test_after_failure_not_list(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(jobs, failed)
+    assert len(completed) == 0
+    with open(os.path.join(tempdir, 'job', 'after_failure_not_list')) as fd:
+        assert fd.readline() == Runner.FAIL_AFTER_FAILURE_NOT_LIST
+        assert fd.readline() == ''

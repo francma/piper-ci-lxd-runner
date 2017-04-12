@@ -1,0 +1,13 @@
+{
+  "commands": [
+    "SDADSADSADAWAEGFRESG=1",
+    "false",
+    "echo 'THIS SHOULD NOT BE EXECUTED!'"
+  ],
+  "config": {
+    "image": "alpine/3.5"
+  },
+  "after_failure": [
+    "echo $SDADSADSADAWAEGFRESG"
+  ]
+}

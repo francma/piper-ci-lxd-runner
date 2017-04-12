@@ -27,6 +27,7 @@ class Runner:
     FAIL_CONFIG_NOT_DICT = 'Config should be dict'
     FAIL_NO_IMAGE = 'No image found in config'
     FAIL_IMAGE_NOT_STR = 'Image should be str'
+    FAIL_AFTER_FAILURE_NOT_LIST = 'type(after_failure) should be list'
 
     def __init__(
             self,
@@ -101,6 +102,12 @@ class Runner:
                 sleep(self._runner_interval)
                 continue
 
+            if 'after_failure' in job and type(job['after_failure']) is not list:
+                self._report_fail(secret, self.FAIL_AFTER_FAILURE_NOT_LIST)
+                sleep(self._runner_interval)
+                continue
+
+            after_failure = job['after_failure'] if 'after_failure' in job else []
             commands = job['commands']
             env = job['config']['env'] if 'env' in job['config'] else {}
             image = job['config']['image']
@@ -109,7 +116,8 @@ class Runner:
                 commands=commands,
                 secret=secret,
                 env=env,
-                image=image
+                image=image,
+                after_failure=after_failure,
             )
 
             try:
@@ -129,6 +137,7 @@ class Runner:
         try:
             container = self._client.containers.create(container_config, wait=True)
         except pylxd.exceptions.LXDAPIException as e:
+            # FIXME
             raise ImageNotFoundException
 
         container.start(wait=True)

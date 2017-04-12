@@ -1,0 +1,9 @@
+{
+  "commands": [
+    "true"
+  ],
+  "config": {
+    "image": "alpine/3.5"
+  },
+  "after_failure": "REEEEEEEEEEEEEEEEEEEEEEE!!!"
+}
