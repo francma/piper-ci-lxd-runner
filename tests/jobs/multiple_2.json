@@ -1,0 +1,8 @@
+{
+  "commands": [
+    "echo 2"
+  ],
+  "config": {
+    "image": "alpine/3.5"
+  }
+}

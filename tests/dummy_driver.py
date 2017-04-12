@@ -57,11 +57,15 @@ class Queue:
     def pop():
         with portalocker.Lock(Queue.QUEUE_FILE, timeout=5, mode='r+') as fp:
             lines = fp.readlines()
+            lines = [x for x in lines if x.strip()]
             if not lines:
                 return None
 
+            fp.seek(0)
             fp.write(os.linesep.join(lines[1:]))
-            line = lines[0]
+            fp.truncate()
+
+            line = lines[0].strip()
             with open('jobs/{}.json'.format(line)) as job_fp:
                 j = json.loads(job_fp.read())
                 j['secret'] = line

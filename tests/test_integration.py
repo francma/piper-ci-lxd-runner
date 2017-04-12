@@ -207,6 +207,38 @@ def test_fail(connect):
     'connect',
     [[
         get_test_key(),
+        ['multiple_1', 'multiple_2', 'multiple_3']
+    ]],
+    indirect=True
+)
+def test_multiple(connect):
+    server, worker, test_key, jobs, tempdir = connect
+    completed, failed = wait_until_finished(test_key, jobs)
+    assert sorted(completed) == sorted(jobs), "expected {}, got {}".format(jobs, completed)
+
+    with open(os.path.join(tempdir, 'job', 'multiple_1')) as fd:
+        assert re.match(r'^::piper_lxd-ci:command:0:start:\d+::$', fd.readline())
+        assert fd.readline().strip() == '1'
+        assert re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', fd.readline())
+        assert fd.readline() == ''
+
+    with open(os.path.join(tempdir, 'job', 'multiple_2')) as fd:
+        assert re.match(r'^::piper_lxd-ci:command:0:start:\d+::$', fd.readline())
+        assert fd.readline().strip() == '2'
+        assert re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', fd.readline())
+        assert fd.readline() == ''
+
+    with open(os.path.join(tempdir, 'job', 'multiple_3')) as fd:
+        assert re.match(r'^::piper_lxd-ci:command:0:start:\d+::$', fd.readline())
+        assert fd.readline().strip() == '3'
+        assert re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', fd.readline())
+        assert fd.readline() == ''
+
+
+@pytest.mark.parametrize(
+    'connect',
+    [[
+        get_test_key(),
         ['no_commands']
     ]],
     indirect=True
