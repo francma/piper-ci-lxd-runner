@@ -58,15 +58,16 @@ def get_test_key():
     return 'PIPER-{}-{}'.format(int(time.time()), uuid.uuid4().hex)
 
 
-def wait_for_completed(test_key, jobs, timeout=60):
+def wait_until_finished(test_key, jobs, timeout=60):
     for i in range(timeout * 10):
         test_temp_files = os.listdir(os.path.join(tempfile.gettempdir(), test_key, 'job'))
-        test_temp_files = [''.join(x.split('-')[:-1]) for x in test_temp_files if x.endswith('-completed')]
-        if sorted(test_temp_files) == sorted(jobs):
-            return test_temp_files
+        completed = [''.join(x.split('-')[:-1]) for x in test_temp_files if x.endswith('-completed')]
+        failed = [''.join(x.split('-')[:-1]) for x in test_temp_files if x.endswith('-failed')]
+        if sorted(completed + failed) == sorted(jobs):
+            return completed, failed
         time.sleep(.1)
 
-    return test_temp_files
+    return completed, failed
 
 
 @pytest.fixture
@@ -110,7 +111,7 @@ def connect(request):
 )
 def test_sleep(connect):
     server, worker, test_key, jobs, tempdir = connect
-    completed = wait_for_completed(test_key, jobs, timeout=30)
+    completed, failed = wait_until_finished(test_key, jobs, timeout=30)
     assert sorted(completed) == sorted(jobs), "expected {}, got {}".format(jobs, completed)
 
     with open(os.path.join(tempdir, 'job', 'sleep')) as fp:
@@ -136,7 +137,7 @@ def test_sleep(connect):
 )
 def test_cd(connect):
     server, worker, test_key, jobs, tempdir = connect
-    completed = wait_for_completed(test_key, jobs)
+    completed, failed = wait_until_finished(test_key, jobs)
     assert sorted(completed) == sorted(jobs), "expected {}, got {}".format(jobs, completed)
 
     with open(os.path.join(tempdir, 'job', 'cd')) as fp:
@@ -167,7 +168,7 @@ def test_cd(connect):
 )
 def test_env(connect):
     server, worker, test_key, jobs, tempdir = connect
-    completed = wait_for_completed(test_key, jobs)
+    completed, failed = wait_until_finished(test_key, jobs)
     assert sorted(completed) == sorted(jobs), "expected {}, got {}".format(jobs, completed)
 
     with open(os.path.join(tempdir, 'job', 'env')) as fp:
@@ -191,7 +192,7 @@ def test_env(connect):
 )
 def test_fail(connect):
     server, worker, test_key, jobs, tempdir = connect
-    completed = wait_for_completed(test_key, jobs)
+    completed, failed = wait_until_finished(test_key, jobs)
     assert sorted(completed) == sorted(jobs), "expected {}, got {}".format(jobs, completed)
 
     with open(os.path.join(tempdir, 'job', 'fail')) as fp:
@@ -199,3 +200,17 @@ def test_fail(connect):
         assert re.match(r'^::piper_lxd-ci:command:0:end:\d+:1::$', fp.readline())
 
         assert fp.readline() == ''
+
+
+# @pytest.mark.parametrize(
+#     'connect',
+#     [[
+#         get_test_key(),
+#         ['not_json']
+#     ]],
+#     indirect=True
+# )
+# def test_not_json(connect):
+#     server, worker, test_key, jobs, tempdir = connect
+#     completed, failed = wait_until_finished(test_key, jobs)
+#     assert sorted(failed) == sorted(jobs), "expected {}, got {}".format(failed, completed)

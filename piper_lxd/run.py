@@ -1,89 +1,11 @@
 #!/usr/bin/env python3
 import configparser
-import uuid
-import pylxd
-import requests
 import logging
 import click
-import os
 
-from typing import List
-from time import sleep
+from piper_lxd.runner import Runner
 
-from piper_lxd.websocket_handler import WebSocketHandler
-from piper_lxd.async_command import AsyncCommand
-
-
-COMMAND_START = 'printf "::piper_lxd-ci:command:{}:start:%d::\n" `date +%s`'
-COMMAND_END = 'd3d8972793203a4505634f7c3607b4e3697862a=$?; printf "::piper_lxd-ci:command:{}:end:%d:%d::\n" `date +%s` $d3d8972793203a4505634f7c3607b4e3697862a; if [[ $d3d8972793203a4505634f7c3607b4e3697862a != 0 ]]; then exit $d3d8972793203a4505634f7c3607b4e3697862a; fi'
 DEFAULT_INTERVAL = 2
-
-
-def create_script(commands: List[str]) -> str:
-    """
-    command1
-    command2
-    --->
-    ::PIPER:command:1:start:time()::
-    `command1`
-    ::PIPER:command:1:end:time()::
-    ::PIPER:command:2:start:time()::
-    `command2`
-    ::PIPER:command:2:end:time():return_code::
-
-
-    :param commands:
-    :return:
-    """
-
-    script = []
-    for idx, command in enumerate(commands):
-        script.append(COMMAND_START.format(idx))
-        script.append(command)
-        script.append(COMMAND_END.format(idx))
-
-    return '\n'.join(script)
-
-
-def execute(client: pylxd.Client, secret, commands, ws, source, config={}, profiles=[]):
-    # prepare container
-    container_name = 'PIPER' + uuid.uuid4().hex
-    container_config = {
-        'name': container_name,
-        'profiles': profiles,
-        'source': source,
-    }
-    container = client.containers.create(container_config, wait=True)
-    container.start(wait=True)
-
-    env = config['env'] if 'env' in config else {}
-
-    # execute script
-    script = create_script(commands)
-    handler = WebSocketHandler(ws, '/build/write?secret={}'.format(secret))
-    command = AsyncCommand(container, ['/bin/ash', '-c', script], env, handler, handler).wait()
-    handler.close(command.return_code)
-
-    # delete container
-    container.stop(wait=True)
-    container.delete()
-
-
-def delete_all_containers(client):
-    for x in client.containers.all():
-        try:
-            x.stop(wait=True)
-        except Exception as e:
-            pass
-        x.delete()
-
-
-def ws_url(server, secure):
-    return '{}://{}'.format('wss' if secure else 'ws', server)
-
-
-def server_url(server, secure):
-    return '{}://{}'.format('https' if secure else 'http', server)
 
 
 @click.command()
@@ -209,7 +131,7 @@ def run(
         except KeyError:
             runner_interval = DEFAULT_INTERVAL
 
-    _run(
+    runner = Runner(
         runner_token=runner_token,
         driver_url=driver_url,
         lxd_profiles=lxd_profiles,
@@ -221,74 +143,8 @@ def run(
         lxd_verify=lxd_verify
     )
 
+    runner.run()
 
-def _run(
-        runner_token: str,
-        driver_url: str,
-        driver_secure=False,
-        lxd_profiles=[],
-        runner_interval=2,
-        lxd_key=None,
-        lxd_endpoint=None,
-        lxd_cert=None,
-        lxd_verify=False
-):
-    """
-    Runner's main execution loop.
-    
-    :param runner_token: Runner's secret token used to identification 
-    :param driver_url: Driver server without protocol definition (example: server.com)
-    :param driver_secure: Set to true for HTTPs and WSS
-    :param lxd_profiles: List of LXC profiles (see `lxc profile` shell command)
-    :param runner_interval: Wait for x seconds before making next request to server after empty response (no job)  
-    :return: 
-    """
-    cert = (os.path.expanduser(lxd_cert), os.path.expanduser(lxd_key)) if lxd_key and lxd_cert else None
-    client = pylxd.Client(cert=cert, endpoint=lxd_endpoint, verify=lxd_verify)
-
-    # define endpoint URLs
-    ws = ws_url(driver_url, driver_secure)
-    driver_url = server_url(driver_url, driver_secure)
-    fetch_job = '{}/build/pop/{}'.format(driver_url, runner_token)
-
-    while True:
-        try:
-            response = requests.get(fetch_job)
-        except requests.exceptions.ConnectionError:
-            logging.warning('Job fetch from {} failed. Connection error.'.format(driver_url))
-            sleep(runner_interval)
-            continue
-
-        # empty response means no job available
-        if not response.content or response.status_code != 200:
-            sleep(runner_interval)
-            continue
-
-        job = response.json()
-        commands = job['commands']
-        secret = job['secret']
-        config = job['config'] if 'config' in job else {}
-
-        if job['config']['image'].startswith('fingerprint:'):
-            source = {
-                'type': 'image',
-                'fingerprint': job['config']['image'][len('fingerprint:'):]
-            }
-        else:
-            source = {
-                'type': 'image',
-                'alias': job['config']['image']
-            }
-
-        execute(
-            client=client,
-            secret=secret,
-            commands=commands,
-            config=config,
-            ws=ws,
-            profiles=lxd_profiles,
-            source=source,
-        )
 
 if __name__ == '__main__':
     run()

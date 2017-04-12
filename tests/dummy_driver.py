@@ -68,7 +68,7 @@ class Queue:
                 return j
 
 
-@app.route('/build/pop/<token>', methods=['GET'])
+@app.route('/job/pop/<token>', methods=['GET'])
 def pop_build(token):
     if not token:
         flask.abort(404)
@@ -80,7 +80,7 @@ def pop_build(token):
     return flask.jsonify(job)
 
 
-@ws.route('/build/write')
+@ws.route('/job/write')
 def write_build(socket):
     with app.request_context(socket.environ):
         args = flask.request.args
@@ -93,3 +93,12 @@ def write_build(socket):
     file_listener = FileListener(os.path.join(BUILD_LOG_FOLDER, str(secret)))
     handler.add_listener(file_listener)
     handler.receive()
+
+
+@app.route('/job/fail/<secret>')
+def build_fail(secret):
+    path = os.path.join(BUILD_LOG_FOLDER, str(secret))
+    open(path + '-failed', 'w').close()
+    with open(path, 'w') as fd:
+        reason = flask.request.get_json()
+        fd.write(reason)
