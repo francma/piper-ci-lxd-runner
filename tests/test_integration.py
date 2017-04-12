@@ -91,14 +91,13 @@ def connect(request):
     # return
     yield server, client, request.param[0], request.param[1], tempdir
 
-    # cleanup
-    while server.returncode is None:
-        os.kill(server.pid, signal.SIGKILL)
-        server.poll()
+    # stop server and client
+    # https://uwsgi-docs.readthedocs.io/en/latest/ThingsToKnow.html
+    os.kill(server.pid, signal.SIGINT)
+    server.wait()
 
-    while client.returncode is None:
-        os.kill(client.pid, signal.SIGKILL)
-        client.poll()
+    client.terminate()
+    client.wait()
 
 
 @pytest.mark.parametrize(
