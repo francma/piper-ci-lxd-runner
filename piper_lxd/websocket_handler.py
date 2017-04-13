@@ -18,5 +18,5 @@ class WebSocketHandler:
     def on_message(self, data):
         self.web_socket.send(data)
 
-    def close(self, message):
-        self.web_socket.close(message)
+    def close(self):
+        self.web_socket.close()

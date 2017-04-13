@@ -1,8 +1,10 @@
-pylxd
 ws4py
 click
 flask
 uwsgi
-portalocker
 flask_uwsgi_websocket
+gevent
+requests
+pylxd
 pytest
+portalocker
