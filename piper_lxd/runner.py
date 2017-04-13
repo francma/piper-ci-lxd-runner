@@ -4,11 +4,24 @@ import pylxd.exceptions
 import requests
 import logging
 import os
+from enum import Enum
 from time import sleep
 
 from piper_lxd.websocket_handler import WebSocketHandler
 from piper_lxd.async_command import AsyncCommand
 from piper_lxd.job import Job
+
+
+class JobStatus(Enum):
+    COMPLETED = 'COMPLETED'
+    ERROR_NO_COMMANDS = 'ERROR_NO_COMMANDS'
+    ERROR_COMMANDS_NOT_LIST = 'ERROR_COMMANDS_NOT_LIST'
+    ERROR_CONFIG_MISSING = 'ERROR_CONFIG_MISSING'
+    ERROR_CONFIG_NOT_DICT = 'ERROR_CONFIG_NOT_DICT'
+    ERROR_NO_IMAGE = 'ERROR_NO_IMAGE'
+    ERROR_IMAGE_NOT_STR = 'ERROR_IMAGE_NOT_STR'
+    ERROR_AFTER_FAILURE_NOT_LIST = 'ERROR_AFTER_FAILURE_NOT_LIST'
+    ERROR_IMAGE_NOT_FOUND = 'ERROR_IMAGE_NOT_FOUND'
 
 
 class PiperException(Exception):
@@ -20,14 +33,6 @@ class ImageNotFoundException(PiperException):
 
 
 class Runner:
-
-    FAIL_NO_COMMANDS = 'No commands found'
-    FAIL_COMMANDS_NOT_LIST = 'type(commands) should be list'
-    FAIL_CONFIG_MISSING = 'No config found'
-    FAIL_CONFIG_NOT_DICT = 'Config should be dict'
-    FAIL_NO_IMAGE = 'No image found in config'
-    FAIL_IMAGE_NOT_STR = 'Image should be str'
-    FAIL_AFTER_FAILURE_NOT_LIST = 'type(after_failure) should be list'
 
     def __init__(
             self,
@@ -73,37 +78,37 @@ class Runner:
             secret = job['secret']
 
             if 'commands' not in job:
-                self._report_fail(secret, self.FAIL_NO_COMMANDS)
+                self._report_status(secret, JobStatus.ERROR_NO_COMMANDS)
                 sleep(self._runner_interval)
                 continue
 
             if type(job['commands']) is not list:
-                self._report_fail(secret, self.FAIL_COMMANDS_NOT_LIST)
+                self._report_status(secret, JobStatus.ERROR_COMMANDS_NOT_LIST)
                 sleep(self._runner_interval)
                 continue
 
             if 'config' not in job:
-                self._report_fail(secret, self.FAIL_CONFIG_MISSING)
+                self._report_status(secret, JobStatus.ERROR_CONFIG_MISSING)
                 sleep(self._runner_interval)
                 continue
 
             if type(job['config']) is not dict:
-                self._report_fail(secret, self.FAIL_CONFIG_NOT_DICT)
+                self._report_status(secret, JobStatus.ERROR_CONFIG_NOT_DICT)
                 sleep(self._runner_interval)
                 continue
 
             if 'image' not in job['config']:
-                self._report_fail(secret, self.FAIL_NO_IMAGE)
+                self._report_status(secret, JobStatus.ERROR_NO_IMAGE)
                 sleep(self._runner_interval)
                 continue
 
             if type(job['config']['image']) is not str:
-                self._report_fail(secret, self.FAIL_IMAGE_NOT_STR)
+                self._report_status(secret, JobStatus.ERROR_IMAGE_NOT_STR)
                 sleep(self._runner_interval)
                 continue
 
             if 'after_failure' in job and type(job['after_failure']) is not list:
-                self._report_fail(secret, self.FAIL_AFTER_FAILURE_NOT_LIST)
+                self._report_status(secret, JobStatus.ERROR_AFTER_FAILURE_NOT_LIST)
                 sleep(self._runner_interval)
                 continue
 
@@ -123,7 +128,7 @@ class Runner:
             try:
                 self._execute(_job)
             except ImageNotFoundException:
-                self._report_fail(secret, 'Image {} not found'.format(image))
+                self._report_status(secret, JobStatus.ERROR_IMAGE_NOT_FOUND)
 
     def _execute(self, job: Job):
         # prepare container
@@ -145,17 +150,18 @@ class Runner:
         # execute script
         handler = WebSocketHandler(self.ws_base_url, self.ws_write_resource(job.secret))
         command = AsyncCommand(container, ['/bin/ash', '-c', job.script], job.env, handler, handler).wait()
-        handler.close(command.return_code)
+        self._report_status(secret=job.secret, status=JobStatus.COMPLETED)
+        handler.close()
 
         # delete container
         container.stop(wait=True)
         container.delete()
 
-    def _report_fail(self, secret, message):
+    def _report_status(self, secret: str, status: JobStatus):
         js = {
-            'reason': message,
+            'status': status.value,
         }
-        requests.post(self.error_job_url(secret), json=js)
+        requests.put(self.job_status_url(secret), json=js)
 
     @property
     def ws_base_url(self):
@@ -169,8 +175,8 @@ class Runner:
     def fetch_job_url(self):
         return '{}/job/pop/{}'.format(self.base_url, self._runner_token)
 
-    def error_job_url(self, secret):
-        return '{}/job/error/{}'.format(self.base_url, secret)
+    def job_status_url(self, secret):
+        return '{}/job/status/{}'.format(self.base_url, secret)
 
     def ws_write_url(self, secret):
         return '{}{}'.format(self.ws_base_url, self.ws_write_resource(secret))

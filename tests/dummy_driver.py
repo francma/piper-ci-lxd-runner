@@ -1,52 +1,65 @@
 #!/usr/bin/env python3
 import flask
-from flask_uwsgi_websocket import WebSocket
+from flask_uwsgi_websocket import GeventWebSocket
+from flask_uwsgi_websocket import GeventWebSocketClient
 import os
 import portalocker
 import tempfile
 import json
 
 app = flask.Flask(__name__)
-ws = WebSocket(app)
+ws = GeventWebSocket(app)
 
 GLOBAL_SECRET = 'SECRET'
 BUILD_LOG_FOLDER = os.path.join(tempfile.gettempdir(), os.environ['PIPER_TEST_KEY'], 'job')
 
 
+class Listener:
+
+    def on_message(self, data: str):
+        raise NotImplementedError
+
+
+class FileListener(Listener):
+
+    def __init__(self, path: str):
+        self.path = path
+        self.fd = open(path, 'w')
+
+    def on_message(self, data: str):
+        self.fd.write(data)
+        self.fd.flush()
+
+
 class SocketHandler:
 
-    def __init__(self, socket):
+    def __init__(self, socket: GeventWebSocketClient):
         self.socket = socket
         self.listeners = []
 
     def receive(self):
         while True:
             data = self.socket.receive()
-            if data is not None:
-                for listener in self.listeners:
-                    listener.on_message(data.decode('utf-8'))
-            else:
-                for listener in self.listeners:
-                    listener.on_close()
+            # socket was closed
+            if data is None:
                 return
+            # timeout
+            if len(data) == 0:
+                continue
 
-    def add_listener(self, listener):
+            for listener in self.listeners:
+                listener.on_message(data.decode('utf-8'))
+
+    def add_listener(self, listener: Listener):
         self.listeners.append(listener)
 
 
-class FileListener:
+def status_file_path(secret: str):
+    return os.path.join(BUILD_LOG_FOLDER, secret + '-status')
 
-    def __init__(self, path):
-        self.path = path
-        self.fd = open(path, 'w')
 
-    def on_message(self, data):
-        self.fd.write(data)
-        self.fd.flush()
-
-    def on_close(self):
-        self.fd.close()
-        open(self.path + '-completed', 'w').close()
+def log_file_path(secret: str):
+    return os.path.join(BUILD_LOG_FOLDER, secret)
 
 
 class Queue:
@@ -73,9 +86,9 @@ class Queue:
 
 
 @app.route('/job/pop/<token>', methods=['GET'])
-def pop_build(token):
+def pop_build(token: str):
     if not token:
-        flask.abort(404)
+        flask.abort(400)
 
     job = Queue.pop()
     if job is None:
@@ -85,24 +98,24 @@ def pop_build(token):
 
 
 @ws.route('/job/write')
-def write_build(socket):
+def write_build(socket: GeventWebSocketClient):
     with app.request_context(socket.environ):
         args = flask.request.args
         secret = args['secret'] if args['secret'] else None
 
     if not secret:
-        socket.close('invalid secret')
+        socket.close()
 
     handler = SocketHandler(socket)
-    file_listener = FileListener(os.path.join(BUILD_LOG_FOLDER, str(secret)))
+    file_listener = FileListener(log_file_path(secret))
     handler.add_listener(file_listener)
     handler.receive()
 
 
-@app.route('/job/error/<secret>', methods=['POST'])
-def build_fail(secret):
-    path = os.path.join(BUILD_LOG_FOLDER, str(secret))
-    with open(path, 'w') as fd:
+@app.route('/job/status/<secret>', methods=['PUT'])
+def update_build_status(secret: str):
+    with open(status_file_path(secret), 'w') as fd:
         js = flask.request.get_json()
-        fd.write(js['reason'])
-    open(path + '-failed', 'w').close()
+        print(js['status'], file=fd)
+
+    return flask.make_response('', 200)

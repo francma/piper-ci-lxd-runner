@@ -1,18 +1,4 @@
 from setuptools import setup, find_packages
-import os
-
-
-def read(fname):
-    with open(os.path.join(os.path.dirname(__file__), fname)) as f:
-        return f.read()
-
-
-test_requirements_file = os.path.join('requirements', 'development.txt')
-if os.path.isfile(test_requirements_file):
-    with open(test_requirements_file) as fh:
-        tests_require = fh.read().splitlines()
-else:
-    tests_require = ['pytest>=3.0']
 
 long_description = ""
 
@@ -40,17 +26,25 @@ setup(
     ],
     zip_safe=False,
     entry_points={
-          'console_scripts': [
-              'piper_lxd = piper_lxd.run:run'
-          ]
-      },
-    install_requires=[
-        'pylxd',
-        'ws4py',
-        'click',
-    ],
+        'console_scripts': [
+          'piper_lxd = piper_lxd.run:run'
+        ]
+    },
     setup_requires=[
         'pytest-runner',
     ],
-    tests_require=tests_require,
+    install_requires=[
+        'ws4py',
+        'click',
+        'flask',
+        'uwsgi',
+        'flask_uwsgi_websocket',
+        'gevent',
+        'requests',
+        'pylxd',
+    ],
+    tests_require=[
+        'pytest',
+        'portalocker',
+    ],
 )
