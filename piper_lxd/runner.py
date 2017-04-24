@@ -14,6 +14,8 @@ from piper_lxd.job import Job
 
 class JobStatus(Enum):
     COMPLETED = 'COMPLETED'
+    RUNNING = 'RUNNING'
+    STARTED = 'STARTED'
     ERROR_NO_COMMANDS = 'ERROR_NO_COMMANDS'
     ERROR_COMMANDS_NOT_LIST = 'ERROR_COMMANDS_NOT_LIST'
     ERROR_CONFIG_MISSING = 'ERROR_CONFIG_MISSING'
@@ -149,7 +151,9 @@ class Runner:
 
         # execute script
         handler = WebSocketHandler(self.ws_base_url, self.ws_write_resource(job.secret))
-        command = AsyncCommand(container, ['/bin/ash', '-c', job.script], job.env, handler, handler).wait()
+        command = AsyncCommand(container, ['/bin/ash', '-c', job.script], job.env, handler, handler)
+        while not command.wait(3 * 1000):
+            self._report_status(secret=job.secret, status=JobStatus.RUNNING)
         self._report_status(secret=job.secret, status=JobStatus.COMPLETED)
         handler.close()
 

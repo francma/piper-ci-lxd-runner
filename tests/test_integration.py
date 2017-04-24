@@ -31,6 +31,9 @@ class Context:
         assert self._server.returncode is None
         assert self._worker.returncode is None
 
+    def __repr__(self):
+        return self._key
+
     def wait(self, timeout=60):
         jobs = set(self._jobs)
         completed = set()

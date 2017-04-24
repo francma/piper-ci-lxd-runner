@@ -5,6 +5,8 @@ from time import sleep
 
 class AsyncCommand:
 
+    POLL_TIMEOUT = 0.1
+
     class NullWebSocket(WebSocketBaseClient):
 
         def handshake_ok(self):
@@ -76,8 +78,15 @@ class AsyncCommand:
 
         return self.completed_operation.metadata['return']
 
-    def wait(self):
-        while len(self.manager.websockets.values()) > 0:
-            sleep(.1)
+    def wait(self, timeout=None) -> bool:
+        if timeout is None:
+            while len(self.manager.websockets.values()) > 0:
+                sleep(self.POLL_TIMEOUT)
 
-        return self
+            return True
+
+        while timeout > 0:
+            sleep(self.POLL_TIMEOUT) if timeout > 100 else sleep(timeout / 1000)
+            timeout -= self.POLL_TIMEOUT * 100
+
+        return len(self.manager.websockets.values()) == 0
