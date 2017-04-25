@@ -5,6 +5,11 @@
   "config": {
     "image": [
       "AJOJOJO"
-    ]
+    ],
+    "repository": {
+      "origin": "https://github.com/francma/piper-ci-test-repo.git",
+      "ref": "NOT USED",
+      "id": "e7a4739755a81a06242bc3249e36b133b3783f9b"
+    }
   }
 }

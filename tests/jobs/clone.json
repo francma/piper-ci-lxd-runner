@@ -1,9 +1,14 @@
 {
   "commands": [
-    "true"
+    "apk add git",
+    "git log -1 --format=%H",
+    "ls | tr '\n' ' '; echo",
+    "cd submodule",
+    "git log -1 --format=%H",
+    "ls | tr '\n' ' '; echo"
   ],
   "config": {
-    "image": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "image": "alpine/3.5",
     "repository": {
       "origin": "https://github.com/francma/piper-ci-test-repo.git",
       "ref": "NOT USED",

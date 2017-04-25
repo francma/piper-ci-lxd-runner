@@ -5,7 +5,7 @@ from time import sleep
 
 class AsyncCommand:
 
-    POLL_TIMEOUT = 0.1
+    POLL_TIMEOUT = 100
 
     class NullWebSocket(WebSocketBaseClient):
 
@@ -81,12 +81,19 @@ class AsyncCommand:
     def wait(self, timeout=None) -> bool:
         if timeout is None:
             while len(self.manager.websockets.values()) > 0:
-                sleep(self.POLL_TIMEOUT)
+                sleep(self.POLL_TIMEOUT / 1000)
 
             return True
 
         while timeout > 0:
-            sleep(self.POLL_TIMEOUT) if timeout > 100 else sleep(timeout / 1000)
-            timeout -= self.POLL_TIMEOUT * 100
+            if len(self.manager.websockets.values()) == 0:
+                return True
+
+            if timeout > self.POLL_TIMEOUT:
+                sleep(self.POLL_TIMEOUT / 1000)
+            else:
+                sleep(timeout / 1000)
+
+            timeout -= self.POLL_TIMEOUT
 
         return len(self.manager.websockets.values()) == 0

@@ -1,4 +1,5 @@
 from typing import Dict, List
+from piper_lxd.models.git import Commit
 
 
 class Job:
@@ -38,12 +39,21 @@ class Job:
         'fi;',
     ])
 
-    def __init__(self, commands: List[str], secret: str, image: str, after_failure: List[str], env: Dict[str, str]):
+    def __init__(
+        self,
+        commands: List[str],
+        secret: str,
+        image: str,
+        after_failure: List[str],
+        env: Dict[str, str],
+        commit: Commit
+    ):
         self._commands = commands
         self._secret = secret
         self._image = image
         self._env = env
         self._after_failure = after_failure
+        self._commit = commit
 
     @property
     def commands(self):
@@ -52,6 +62,10 @@ class Job:
     @property
     def secret(self):
         return self._secret
+
+    @property
+    def commit(self):
+        return self._commit
 
     @property
     def image(self):
@@ -76,7 +90,7 @@ class Job:
 
     @property
     def script(self):
-        script = []
+        script = list()
         script.append(self.COMMAND_FIRST)
 
         for idx, command in enumerate(self.commands):
