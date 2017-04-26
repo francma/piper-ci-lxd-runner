@@ -1,15 +1,16 @@
-import pytest
-import subprocess
-import time
 import os
-import shlex
-import uuid
-import tempfile
-import signal
 import re
+import shlex
+import signal
+import subprocess
+import tempfile
+import time
+import uuid
 from typing import List
 
-from piper_lxd.runner import JobStatus
+import pytest
+
+from piper_lxd.models.runner import JobStatus
 
 
 class Context:
@@ -288,7 +289,7 @@ def test_after_failure(context: Context):
 
 @pytest.mark.parametrize(
     'context',
-    [['multiple_1', 'multiple_2', 'multiple_3']],
+    [['multiple_1', 'multiple_2']],
     indirect=True
 )
 def test_multiple(context: Context):
@@ -304,12 +305,6 @@ def test_multiple(context: Context):
     with open(context.log_file(context.jobs()[1])) as fd:
         assert re.match(r'^::piper_lxd-ci:command:0:start:\d+::$', fd.readline())
         assert fd.readline().strip() == '2'
-        assert re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', fd.readline())
-        assert fd.readline() == ''
-
-    with open(context.log_file(context.jobs()[2])) as fd:
-        assert re.match(r'^::piper_lxd-ci:command:0:start:\d+::$', fd.readline())
-        assert fd.readline().strip() == '3'
         assert re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', fd.readline())
         assert fd.readline() == ''
 

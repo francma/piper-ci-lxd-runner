@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import configparser
 import logging
+
 import click
 
-from piper_lxd.runner import Runner
+from piper_lxd.models.runner import Runner
 
 DEFAULT_INTERVAL = 2
 

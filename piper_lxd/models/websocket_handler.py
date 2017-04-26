@@ -15,7 +15,7 @@ class WebSocketHandler:
         self.web_socket.resource = resource
         self.web_socket.connect()
 
-    def on_message(self, data):
+    def send(self, data):
         self.web_socket.send(data)
 
     def close(self):

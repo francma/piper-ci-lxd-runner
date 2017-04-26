@@ -1,17 +1,18 @@
+import logging
+import os
 import uuid
+from enum import Enum
+from time import sleep
+
 import pylxd
 import pylxd.exceptions
 import requests
-import logging
-import os
-from enum import Enum
-from time import sleep
-from datetime import timedelta
 
-from piper_lxd.websocket_handler import WebSocketHandler
-from piper_lxd.async_command import AsyncCommand
-from piper_lxd.job import Job
+from piper_lxd.models.async_command import AsyncCommand
 from piper_lxd.models.git import *
+from piper_lxd.models.job import Job
+from piper_lxd.models.websocket_handler import WebSocketHandler
+from piper_lxd.models.exceptions import *
 
 
 class JobStatus(Enum):
@@ -25,7 +26,6 @@ class JobStatus(Enum):
     ERROR_NO_IMAGE = 'ERROR_NO_IMAGE'
     ERROR_IMAGE_NOT_STR = 'ERROR_IMAGE_NOT_STR'
     ERROR_AFTER_FAILURE_NOT_LIST = 'ERROR_AFTER_FAILURE_NOT_LIST'
-    ERROR_IMAGE_NOT_FOUND = 'ERROR_IMAGE_NOT_FOUND'
     ERROR_REPOSITORY_NOT_FOUND = 'ERROR_REPOSITORY_NOT_FOUND'
     ERROR_REPOSITORY_NOT_DICT = 'ERROR_REPOSITORY_NOT_DICT'
     ERROR_REPOSITORY_NO_ORIGIN = 'ERROR_REPOSITORY_NO_ORIGIN'
@@ -36,14 +36,8 @@ class JobStatus(Enum):
     ERROR_REPOSITORY_REF_NOT_STR = 'ERROR_REPOSITORY_REF_NOT_STR'
     ERROR_REPOSITORY_ID_NOT_STR = 'ERROR_REPOSITORY_ID_NOT_STR'
     ERROR_REPOSITORY_KEY_NOT_STR = 'ERROR_REPOSITORY_KEY_NOT_STR'
-
-
-class PiperException(Exception):
-    pass
-
-
-class ImageNotFoundException(PiperException):
-    pass
+    ERROR_GIT_CLONE = 'ERROR_GIT_CLONE'
+    ERROR_LXD_CONTAINER_CREATE = 'ERROR_LXD_CONTAINER_CREATE'
 
 
 class Runner:
@@ -54,7 +48,7 @@ class Runner:
             runner_token: str,
             driver_url: str,
             driver_secure=False,
-            lxd_profiles=[],
+            lxd_profiles=None,
             runner_interval=2,
             lxd_key=None,
             lxd_endpoint=None,
@@ -66,7 +60,7 @@ class Runner:
         self._driver_endpoint = driver_url
         self._driver_secure = driver_secure
         self._runner_token = runner_token
-        self._lxd_profiles = lxd_profiles
+        self._lxd_profiles = lxd_profiles if type(lxd_profiles) is list else []
         self._runner_token = runner_token
         self._runner_interval = runner_interval
         self._runner_repository_dir = runner_repository_dir
@@ -183,19 +177,22 @@ class Runner:
                 env=env,
                 image=image,
                 after_failure=after_failure,
-                commit=commit,
+                wait_for_network=True,
+                cwd='/piper'
             )
 
             try:
-                self._execute(_job)
-            except ImageNotFoundException:
-                self._report_status(secret, JobStatus.ERROR_IMAGE_NOT_FOUND)
+                self._execute(_job, commit)
+            except GitCloneException:
+                self._report_status(secret, JobStatus.ERROR_GIT_CLONE)
+            except LxdContainerCreateException:
+                self._report_status(secret, JobStatus.ERROR_LXD_CONTAINER_CREATE)
 
-    def _execute(self, job: Job):
+    def _execute(self, job: Job, commit: Commit):
         # clone git repository
         destination = os.path.join(self._runner_repository_dir, job.secret)
         os.makedirs(destination)
-        job.commit.clone(destination)
+        commit.clone(destination)
 
         # prepare container
         container_name = 'PIPER' + uuid.uuid4().hex
@@ -206,7 +203,7 @@ class Runner:
             'devices': {
                 'piper_repository': {
                     'type': 'disk',
-                    'path': '/piper_repository',
+                    'path': '/piper',
                     'source': destination,
                 }
             }
@@ -214,15 +211,14 @@ class Runner:
 
         try:
             container = self._client.containers.create(container_config, wait=True)
-        except pylxd.exceptions.LXDAPIException as e:
-            # FIXME
-            raise ImageNotFoundException
+        except pylxd.exceptions.LXDAPIException:
+            raise LxdContainerCreateException
 
         container.start(wait=True)
 
         # execute script
         handler = WebSocketHandler(self.ws_base_url, self.ws_write_resource(job.secret))
-        command = AsyncCommand(container, ['/bin/ash', '-c', 'cd /piper_repository; sleep 3; ' + job.script], job.env, handler, handler)
+        command = AsyncCommand(container, ['/bin/ash', '-c', job.script], job.env, handler, handler)
         while not command.wait(3 * 1000):
             self._report_status(secret=job.secret, status=JobStatus.RUNNING)
         self._report_status(secret=job.secret, status=JobStatus.COMPLETED)

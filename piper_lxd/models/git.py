@@ -1,5 +1,7 @@
 import subprocess
 
+from piper_lxd.models.exceptions import *
+
 
 class Repository:
 
@@ -40,21 +42,23 @@ class Commit:
     def branch(self):
         return self._branch
 
+    # TODO add keys for private repos
+    # git config core.sshCommand "ssh -i ~/.ssh/id_rsa_example -F /dev/null"
     def clone(self, destination: str):
         command = ['git', 'clone', self.branch.repository.origin, '.']
         process = subprocess.Popen(command, cwd=destination, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = process.communicate()
         if process.returncode != 0:
-            raise Exception(err)
+            raise GitCloneException(err)
 
         command = ['git', 'reset', '--hard', self.sha]
         process = subprocess.Popen(command, cwd=destination, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = process.communicate()
         if process.returncode != 0:
-            raise Exception(err)
+            raise GitCloneException(err)
 
         command = ['git', 'submodule', 'update', '--init', '--recursive']
         process = subprocess.Popen(command, cwd=destination, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = process.communicate()
         if process.returncode != 0:
-            raise Exception(err)
+            raise GitCloneException(err)

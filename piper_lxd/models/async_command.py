@@ -31,7 +31,7 @@ class AsyncCommand:
             else:
                 decoded = message.data.decode('utf-8')
 
-            self.handler.on_message(decoded)
+            self.handler.send(decoded)
 
     def __init__(self, container, commands, env, stdout_handler, stderr_handler):
         self.client = container.client

@@ -48,7 +48,7 @@ class SocketHandler:
                 continue
 
             for listener in self.listeners:
-                listener.on_message(data.decode('utf-8'))
+                listener.send(data.decode('utf-8'))
 
     def add_listener(self, listener: Listener):
         self.listeners.append(listener)
