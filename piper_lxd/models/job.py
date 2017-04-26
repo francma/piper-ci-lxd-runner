@@ -5,7 +5,7 @@ class Job:
 
     COMMAND_CWD = 'cd "{}"'
 
-    COMMAND_WAIT_FOR_NETWORK = 'sleep 2'
+    COMMAND_WAIT_FOR_NETWORK = 'sleep 5'  # FIXME
 
     COMMAND_FIRST = 'PIPER_GLOB_EXIT=0'
 

@@ -1,5 +1,6 @@
 {
   "commands": [
+    "apk update",
     "apk add git",
     "git log -1 --format=%H",
     "ls | tr '\n' ' '; echo",

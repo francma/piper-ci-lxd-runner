@@ -16,7 +16,7 @@ BUILD_LOG_FOLDER = os.path.join(tempfile.gettempdir(), os.environ['PIPER_TEST_KE
 
 class Listener:
 
-    def on_message(self, data: str):
+    def send(self, data: str):
         raise NotImplementedError
 
 
@@ -26,7 +26,7 @@ class FileListener(Listener):
         self.path = path
         self.fd = open(path, 'w')
 
-    def on_message(self, data: str):
+    def send(self, data: str):
         self.fd.write(data)
         self.fd.flush()
 

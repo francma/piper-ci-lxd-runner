@@ -1,17 +1,10 @@
-from ws4py.client import WebSocketBaseClient
+from ws4py.client.threadedclient import WebSocketClient
 
 
 class WebSocketHandler:
 
-    class WebSocket(WebSocketBaseClient):
-        def __init__(self, *args, **kwargs):
-            super(WebSocketHandler.WebSocket, self).__init__(*args, **kwargs)
-
-        def handshake_ok(self):
-            pass
-
     def __init__(self, address, resource):
-        self.web_socket = self.WebSocket(address)
+        self.web_socket = WebSocketClient(address)
         self.web_socket.resource = resource
         self.web_socket.connect()
 

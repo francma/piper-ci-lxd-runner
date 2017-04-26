@@ -164,19 +164,25 @@ def test_clone(context: Context):
             if re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', line):
                 break
         assert re.match(r'^::piper_lxd-ci:command:1:start:\d+::$', fp.readline())
-        assert fp.readline().strip() == 'e7a4739755a81a06242bc3249e36b133b3783f9b'
-        assert re.match(r'^::piper_lxd-ci:command:1:end:\d+:0::$', fp.readline())
+        while True:
+            line = fp.readline()
+            assert line != ''
+            if re.match(r'^::piper_lxd-ci:command:1:end:\d+:0::$', line):
+                break
         assert re.match(r'^::piper_lxd-ci:command:2:start:\d+::$', fp.readline())
-        assert sorted(fp.readline().strip().split(' ')) == sorted(['README.md', 'submodule'])
+        assert fp.readline().strip() == 'e7a4739755a81a06242bc3249e36b133b3783f9b'
         assert re.match(r'^::piper_lxd-ci:command:2:end:\d+:0::$', fp.readline())
         assert re.match(r'^::piper_lxd-ci:command:3:start:\d+::$', fp.readline())
+        assert sorted(fp.readline().strip().split(' ')) == sorted(['README.md', 'submodule'])
         assert re.match(r'^::piper_lxd-ci:command:3:end:\d+:0::$', fp.readline())
         assert re.match(r'^::piper_lxd-ci:command:4:start:\d+::$', fp.readline())
-        assert fp.readline().strip() == '82a5fe97f68c66db1ba232338122b715dc776610'
         assert re.match(r'^::piper_lxd-ci:command:4:end:\d+:0::$', fp.readline())
         assert re.match(r'^::piper_lxd-ci:command:5:start:\d+::$', fp.readline())
-        assert sorted(fp.readline().strip().split(' ')) == sorted(['README.md'])
+        assert fp.readline().strip() == '82a5fe97f68c66db1ba232338122b715dc776610'
         assert re.match(r'^::piper_lxd-ci:command:5:end:\d+:0::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:command:6:start:\d+::$', fp.readline())
+        assert sorted(fp.readline().strip().split(' ')) == sorted(['README.md'])
+        assert re.match(r'^::piper_lxd-ci:command:6:end:\d+:0::$', fp.readline())
 
         assert fp.readline() == ''
 
