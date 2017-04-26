@@ -3,6 +3,10 @@ from typing import Dict, List
 
 class Job:
 
+    COMMAND_CWD = 'cd "{}"'
+
+    COMMAND_WAIT_FOR_NETWORK = 'sleep 5'  # FIXME
+
     COMMAND_FIRST = 'PIPER_GLOB_EXIT=0'
 
     COMMAND_START = '\n'.join([
@@ -38,12 +42,23 @@ class Job:
         'fi;',
     ])
 
-    def __init__(self, commands: List[str], secret: str, image: str, after_failure: List[str], env: Dict[str, str]):
+    def __init__(
+        self,
+        commands: List[str],
+        secret: str,
+        image: str,
+        after_failure: List[str],
+        env: Dict[str, str],
+        cwd: str,
+        wait_for_network: bool,
+    ):
         self._commands = commands
         self._secret = secret
         self._image = image
         self._env = env
         self._after_failure = after_failure
+        self._cwd = cwd
+        self._wait_for_network = wait_for_network
 
     @property
     def commands(self):
@@ -76,7 +91,11 @@ class Job:
 
     @property
     def script(self):
-        script = []
+        script = list()
+        script.append(self.COMMAND_CWD.format(self._cwd))
+        if self._wait_for_network:
+            script.append(self.COMMAND_WAIT_FOR_NETWORK)
+
         script.append(self.COMMAND_FIRST)
 
         for idx, command in enumerate(self.commands):

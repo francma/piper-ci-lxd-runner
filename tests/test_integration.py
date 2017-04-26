@@ -1,15 +1,16 @@
-import pytest
-import subprocess
-import time
 import os
-import shlex
-import uuid
-import tempfile
-import signal
 import re
+import shlex
+import signal
+import subprocess
+import tempfile
+import time
+import uuid
 from typing import List
 
-from piper_lxd.runner import JobStatus
+import pytest
+
+from piper_lxd.models.runner import JobStatus
 
 
 class Context:
@@ -31,7 +32,10 @@ class Context:
         assert self._server.returncode is None
         assert self._worker.returncode is None
 
-    def wait(self, timeout=60):
+    def __repr__(self):
+        return self._key
+
+    def wait(self, timeout=120):
         jobs = set(self._jobs)
         completed = set()
         failed = set()
@@ -97,20 +101,23 @@ class Context:
         return server
 
     def _start_piper_lxd(self):
-        command = shlex.split('''
-            piper_lxd 
-            --driver-url 127.0.0.1:4444
-            --runner-token TOKEN 
-            --lxd-profiles piper-ci
-            --lxd-endpoint https://127.0.0.1:8443
-            --lxd-key ~/.config/lxc-client/client.key
-            --lxd-cert ~/.config/lxc-client/client.crt
-        ''')
         tempdir = os.path.join(tempfile.tempdir, self._key)
         os.makedirs(tempdir, exist_ok=True)
-
+        repository_dir = os.path.join(tempdir, 'repository')
+        os.makedirs(repository_dir)
         stdout = open(os.path.join(os.path.join(tempdir, 'piper_lxd.out')), 'w')
         stderr = open(os.path.join(os.path.join(tempdir, 'piper_lxd.err')), 'w')
+
+        command = shlex.split('''
+                    piper_lxd 
+                    --driver-url 127.0.0.1:4444
+                    --runner-token TOKEN 
+                    --lxd-profiles piper-ci
+                    --lxd-endpoint https://127.0.0.1:8443
+                    --lxd-key ~/.config/lxc-client/client.key
+                    --lxd-cert ~/.config/lxc-client/client.crt
+                    --runner-repository-dir
+                ''' + ' ' + repository_dir)
         worker = subprocess.Popen(command, stdout=stdout, stderr=stderr)
 
         return worker
@@ -138,6 +145,46 @@ def context(request):
 
     test_context.worker().terminate()
     test_context.worker().wait()
+
+
+@pytest.mark.parametrize(
+    'context',
+    [['clone']],
+    indirect=True
+)
+def test_clone(context: Context):
+    completed, failed = context.wait(120)
+    assert completed == set(context.jobs())
+
+    with open(context.log_file(context.jobs()[0])) as fp:
+        assert re.match(r'^::piper_lxd-ci:command:0:start:\d+::$', fp.readline())
+        while True:
+            line = fp.readline()
+            assert line != ''
+            if re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', line):
+                break
+        assert re.match(r'^::piper_lxd-ci:command:1:start:\d+::$', fp.readline())
+        while True:
+            line = fp.readline()
+            assert line != ''
+            if re.match(r'^::piper_lxd-ci:command:1:end:\d+:0::$', line):
+                break
+        assert re.match(r'^::piper_lxd-ci:command:2:start:\d+::$', fp.readline())
+        assert fp.readline().strip() == 'e7a4739755a81a06242bc3249e36b133b3783f9b'
+        assert re.match(r'^::piper_lxd-ci:command:2:end:\d+:0::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:command:3:start:\d+::$', fp.readline())
+        assert sorted(fp.readline().strip().split(' ')) == sorted(['README.md', 'submodule'])
+        assert re.match(r'^::piper_lxd-ci:command:3:end:\d+:0::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:command:4:start:\d+::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:command:4:end:\d+:0::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:command:5:start:\d+::$', fp.readline())
+        assert fp.readline().strip() == '82a5fe97f68c66db1ba232338122b715dc776610'
+        assert re.match(r'^::piper_lxd-ci:command:5:end:\d+:0::$', fp.readline())
+        assert re.match(r'^::piper_lxd-ci:command:6:start:\d+::$', fp.readline())
+        assert sorted(fp.readline().strip().split(' ')) == sorted(['README.md'])
+        assert re.match(r'^::piper_lxd-ci:command:6:end:\d+:0::$', fp.readline())
+
+        assert fp.readline() == ''
 
 
 @pytest.mark.parametrize(
@@ -248,7 +295,7 @@ def test_after_failure(context: Context):
 
 @pytest.mark.parametrize(
     'context',
-    [['multiple_1', 'multiple_2', 'multiple_3']],
+    [['multiple_1', 'multiple_2']],
     indirect=True
 )
 def test_multiple(context: Context):
@@ -264,12 +311,6 @@ def test_multiple(context: Context):
     with open(context.log_file(context.jobs()[1])) as fd:
         assert re.match(r'^::piper_lxd-ci:command:0:start:\d+::$', fd.readline())
         assert fd.readline().strip() == '2'
-        assert re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', fd.readline())
-        assert fd.readline() == ''
-
-    with open(context.log_file(context.jobs()[2])) as fd:
-        assert re.match(r'^::piper_lxd-ci:command:0:start:\d+::$', fd.readline())
-        assert fd.readline().strip() == '3'
         assert re.match(r'^::piper_lxd-ci:command:0:end:\d+:0::$', fd.readline())
         assert fd.readline() == ''
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import configparser
 import logging
+
 import click
 
-from piper_lxd.runner import Runner
+from piper_lxd.models.runner import Runner
 
 DEFAULT_INTERVAL = 2
 
@@ -51,20 +52,25 @@ DEFAULT_INTERVAL = 2
     help='Runner\'s secret token used as identification',
 )
 @click.option(
+    '--runner-repository-dir',
+    help='Base directory where remote repositories (GIT) are cloned',
+)
+@click.option(
     '--config',
     help='Configuration file',
 )
 def run(
-        runner_token,
-        runner_interval,
-        driver_url,
-        driver_secure,
-        lxd_profiles,
-        lxd_key,
-        lxd_cert,
-        lxd_verify,
-        lxd_endpoint,
-        config
+    runner_token,
+    runner_interval,
+    runner_repository_dir,
+    driver_url,
+    driver_secure,
+    lxd_profiles,
+    lxd_key,
+    lxd_cert,
+    lxd_verify,
+    lxd_endpoint,
+    config
 ):
     config_file = {}
     if config:
@@ -78,6 +84,13 @@ def run(
             runner_token = config_file['runner']['token']
         except KeyError:
             logging.fatal('Empty runner token, exiting...')
+            exit(1)
+
+    if not runner_repository_dir:
+        try:
+            runner_repository_dir = config_file['runner']['repository_dir']
+        except KeyError:
+            logging.fatal('No repository base directory set, exiting...')
             exit(1)
 
     if not driver_url:
@@ -133,6 +146,7 @@ def run(
 
     runner = Runner(
         runner_token=runner_token,
+        runner_repository_dir=runner_repository_dir,
         driver_url=driver_url,
         lxd_profiles=lxd_profiles,
         runner_interval=runner_interval,

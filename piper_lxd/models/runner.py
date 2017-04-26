@@ -1,19 +1,24 @@
-import uuid
-import pylxd
-import pylxd.exceptions
-import requests
 import logging
 import os
+import uuid
 from enum import Enum
 from time import sleep
 
-from piper_lxd.websocket_handler import WebSocketHandler
-from piper_lxd.async_command import AsyncCommand
-from piper_lxd.job import Job
+import pylxd
+import pylxd.exceptions
+import requests
+
+from piper_lxd.models.async_command import AsyncCommand
+from piper_lxd.models.git import *
+from piper_lxd.models.job import Job
+from piper_lxd.models.websocket_handler import WebSocketHandler
+from piper_lxd.models.exceptions import *
 
 
 class JobStatus(Enum):
     COMPLETED = 'COMPLETED'
+    RUNNING = 'RUNNING'
+    STARTED = 'STARTED'
     ERROR_NO_COMMANDS = 'ERROR_NO_COMMANDS'
     ERROR_COMMANDS_NOT_LIST = 'ERROR_COMMANDS_NOT_LIST'
     ERROR_CONFIG_MISSING = 'ERROR_CONFIG_MISSING'
@@ -21,25 +26,29 @@ class JobStatus(Enum):
     ERROR_NO_IMAGE = 'ERROR_NO_IMAGE'
     ERROR_IMAGE_NOT_STR = 'ERROR_IMAGE_NOT_STR'
     ERROR_AFTER_FAILURE_NOT_LIST = 'ERROR_AFTER_FAILURE_NOT_LIST'
-    ERROR_IMAGE_NOT_FOUND = 'ERROR_IMAGE_NOT_FOUND'
-
-
-class PiperException(Exception):
-    pass
-
-
-class ImageNotFoundException(PiperException):
-    pass
+    ERROR_REPOSITORY_NOT_FOUND = 'ERROR_REPOSITORY_NOT_FOUND'
+    ERROR_REPOSITORY_NOT_DICT = 'ERROR_REPOSITORY_NOT_DICT'
+    ERROR_REPOSITORY_NO_ORIGIN = 'ERROR_REPOSITORY_NO_ORIGIN'
+    ERROR_REPOSITORY_NO_REF = 'ERROR_REPOSITORY_NO_REF'
+    ERROR_REPOSITORY_NO_ID = 'ERROR_REPOSITORY_NO_ID'
+    ERROR_REPOSITORY_NO_KEY = 'ERROR_REPOSITORY_NO_KEY'
+    ERROR_REPOSITORY_ORIGIN_NOT_STR = 'ERROR_REPOSITORY_ORIGIN_NOT_STR'
+    ERROR_REPOSITORY_REF_NOT_STR = 'ERROR_REPOSITORY_REF_NOT_STR'
+    ERROR_REPOSITORY_ID_NOT_STR = 'ERROR_REPOSITORY_ID_NOT_STR'
+    ERROR_REPOSITORY_KEY_NOT_STR = 'ERROR_REPOSITORY_KEY_NOT_STR'
+    ERROR_GIT_CLONE = 'ERROR_GIT_CLONE'
+    ERROR_LXD_CONTAINER_CREATE = 'ERROR_LXD_CONTAINER_CREATE'
 
 
 class Runner:
 
     def __init__(
             self,
+            runner_repository_dir: str,
             runner_token: str,
             driver_url: str,
             driver_secure=False,
-            lxd_profiles=[],
+            lxd_profiles=None,
             runner_interval=2,
             lxd_key=None,
             lxd_endpoint=None,
@@ -51,9 +60,10 @@ class Runner:
         self._driver_endpoint = driver_url
         self._driver_secure = driver_secure
         self._runner_token = runner_token
-        self._lxd_profiles = lxd_profiles
+        self._lxd_profiles = lxd_profiles if type(lxd_profiles) is list else []
         self._runner_token = runner_token
         self._runner_interval = runner_interval
+        self._runner_repository_dir = runner_repository_dir
 
     def run(self):
         while True:
@@ -112,10 +122,54 @@ class Runner:
                 sleep(self._runner_interval)
                 continue
 
+            if 'repository' not in job['config']:
+                self._report_status(secret, JobStatus.ERROR_REPOSITORY_NOT_FOUND)
+                sleep(self._runner_interval)
+                continue
+
+            if type(job['config']['repository']) is not dict:
+                self._report_status(secret, JobStatus.ERROR_REPOSITORY_NOT_DICT)
+                sleep(self._runner_interval)
+                continue
+
+            if 'origin' not in job['config']['repository']:
+                self._report_status(secret, JobStatus.ERROR_REPOSITORY_NO_ORIGIN)
+                sleep(self._runner_interval)
+                continue
+
+            if type(job['config']['repository']['origin']) is not str:
+                self._report_status(secret, JobStatus.ERROR_REPOSITORY_ORIGIN_NOT_STR)
+                sleep(self._runner_interval)
+                continue
+
+            if 'ref' not in job['config']['repository']:
+                self._report_status(secret, JobStatus.ERROR_REPOSITORY_NO_REF)
+                sleep(self._runner_interval)
+                continue
+
+            if type(job['config']['repository']['ref']) is not str:
+                self._report_status(secret, JobStatus.ERROR_REPOSITORY_REF_NOT_STR)
+                sleep(self._runner_interval)
+                continue
+
+            if 'id' not in job['config']['repository']:
+                self._report_status(secret, JobStatus.ERROR_REPOSITORY_NO_ID)
+                sleep(self._runner_interval)
+                continue
+
+            if type(job['config']['repository']['id']) is not str:
+                self._report_status(secret, JobStatus.ERROR_REPOSITORY_ID_NOT_STR)
+                sleep(self._runner_interval)
+                continue
+
             after_failure = job['after_failure'] if 'after_failure' in job else []
             commands = job['commands']
             env = job['config']['env'] if 'env' in job['config'] else {}
             image = job['config']['image']
+
+            repository = Repository(job['config']['repository']['origin'])
+            branch = Branch(job['config']['repository']['ref'], repository)
+            commit = Commit(job['config']['repository']['id'], branch)
 
             _job = Job(
                 commands=commands,
@@ -123,33 +177,50 @@ class Runner:
                 env=env,
                 image=image,
                 after_failure=after_failure,
+                wait_for_network=True,
+                cwd='/piper'
             )
 
             try:
-                self._execute(_job)
-            except ImageNotFoundException:
-                self._report_status(secret, JobStatus.ERROR_IMAGE_NOT_FOUND)
+                self._execute(_job, commit)
+            except GitCloneException:
+                self._report_status(secret, JobStatus.ERROR_GIT_CLONE)
+            except LxdContainerCreateException:
+                self._report_status(secret, JobStatus.ERROR_LXD_CONTAINER_CREATE)
 
-    def _execute(self, job: Job):
+    def _execute(self, job: Job, commit: Commit):
+        # clone git repository
+        destination = os.path.join(self._runner_repository_dir, job.secret)
+        os.makedirs(destination)
+        commit.clone(destination)
+
         # prepare container
         container_name = 'PIPER' + uuid.uuid4().hex
         container_config = {
             'name': container_name,
             'profiles': self.lxd_profiles,
             'source': job.lxd_source,
+            'devices': {
+                'piper_repository': {
+                    'type': 'disk',
+                    'path': '/piper',
+                    'source': destination,
+                }
+            }
         }
 
         try:
             container = self._client.containers.create(container_config, wait=True)
-        except pylxd.exceptions.LXDAPIException as e:
-            # FIXME
-            raise ImageNotFoundException
+        except pylxd.exceptions.LXDAPIException:
+            raise LxdContainerCreateException
 
         container.start(wait=True)
 
         # execute script
         handler = WebSocketHandler(self.ws_base_url, self.ws_write_resource(job.secret))
-        command = AsyncCommand(container, ['/bin/ash', '-c', job.script], job.env, handler, handler).wait()
+        command = AsyncCommand(container, ['/bin/ash', '-c', job.script], job.env, handler, handler)
+        while not command.wait(3 * 1000):
+            self._report_status(secret=job.secret, status=JobStatus.RUNNING)
         self._report_status(secret=job.secret, status=JobStatus.COMPLETED)
         handler.close()
 

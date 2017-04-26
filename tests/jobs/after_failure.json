@@ -5,7 +5,12 @@
     "echo 'THIS SHOULD NOT BE EXECUTED!'"
   ],
   "config": {
-    "image": "alpine/3.5"
+    "image": "alpine/3.5",
+    "repository": {
+      "origin": "https://github.com/francma/piper-ci-test-repo.git",
+      "ref": "NOT USED",
+      "id": "e7a4739755a81a06242bc3249e36b133b3783f9b"
+    }
   },
   "after_failure": [
     "echo $SDADSADSADAWAEGFRESG"
