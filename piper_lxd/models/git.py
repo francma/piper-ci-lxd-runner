@@ -42,23 +42,26 @@ class Commit:
     def branch(self):
         return self._branch
 
-    # TODO add keys for private repos
-    # git config core.sshCommand "ssh -i ~/.ssh/id_rsa_example -F /dev/null"
-    def clone(self, destination: str):
+    def clone(self, destination: str, ssh_keys_path=None):
+        env = dict()
+        if ssh_keys_path is not None:
+            assert type(ssh_keys_path) is list
+            env['GIT_SSH_COMMAND'] = 'ssh -i ' + ' -i '.join(ssh_keys_path) + ' -F /dev/null'
+
         command = ['git', 'clone', self.branch.repository.origin, '.']
-        process = subprocess.Popen(command, cwd=destination, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(command, cwd=destination, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         out, err = process.communicate()
         if process.returncode != 0:
             raise GitCloneException(err)
 
         command = ['git', 'reset', '--hard', self.sha]
-        process = subprocess.Popen(command, cwd=destination, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(command, cwd=destination, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         out, err = process.communicate()
         if process.returncode != 0:
             raise GitCloneException(err)
 
         command = ['git', 'submodule', 'update', '--init', '--recursive']
-        process = subprocess.Popen(command, cwd=destination, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(command, cwd=destination, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         out, err = process.communicate()
         if process.returncode != 0:
             raise GitCloneException(err)
