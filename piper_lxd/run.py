@@ -11,14 +11,8 @@ DEFAULT_INTERVAL = 2
 
 @click.command()
 @click.option(
-    '--driver-url',
+    '--driver-endpoint',
     help='Driver server without protocol definition (example: server.com)',
-)
-@click.option(
-    '--driver-secure',
-    help='FIXME',
-    type=click.BOOL,
-    is_flag=True,
 )
 @click.option(
     '--lxd-profiles',
@@ -63,8 +57,7 @@ def run(
     runner_token,
     runner_interval,
     runner_repository_dir,
-    driver_url,
-    driver_secure,
+    driver_endpoint,
     lxd_profiles,
     lxd_key,
     lxd_cert,
@@ -93,18 +86,12 @@ def run(
             logging.fatal('No repository base directory set, exiting...')
             exit(1)
 
-    if not driver_url:
+    if not driver_endpoint:
         try:
-            driver_url = config_file['driver']['url']
+            driver_endpoint = config_file['driver']['url']
         except KeyError:
             logging.fatal('Driver endpoint not set, exiting...')
             exit(1)
-
-    if driver_secure is None:
-        try:
-            driver_secure = config_file['driver'].getboolean('secure')
-        except KeyError:
-            driver_secure = False
 
     if lxd_verify is None:
         try:
@@ -147,10 +134,9 @@ def run(
     runner = Runner(
         runner_token=runner_token,
         runner_repository_dir=runner_repository_dir,
-        driver_url=driver_url,
+        driver_endpoint=driver_endpoint,
         lxd_profiles=lxd_profiles,
         runner_interval=runner_interval,
-        driver_secure=driver_secure,
         lxd_endpoint=lxd_endpoint,
         lxd_cert=lxd_cert,
         lxd_key=lxd_key,

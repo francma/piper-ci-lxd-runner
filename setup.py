@@ -37,14 +37,10 @@ setup(
         'ws4py',
         'click',
         'flask',
-        'uwsgi',
-        'flask_uwsgi_websocket',
-        'gevent',
         'requests',
         'pylxd',
     ],
     tests_require=[
         'pytest',
-        'portalocker',
     ],
 )

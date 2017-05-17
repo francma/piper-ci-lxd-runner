@@ -6,13 +6,12 @@ class LxdException(PiperException):
     pass
 
 
-class LxdContainerCreateException(LxdException):
+class CloneException(PiperException):
     pass
 
 
-class GitException(PiperException):
-    pass
+class JobException(PiperException):
 
-
-class GitCloneException(GitException):
-    pass
+    def __init__(self, secret, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.secret = secret

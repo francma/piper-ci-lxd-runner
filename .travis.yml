@@ -8,7 +8,6 @@ python:
   - "3.5-dev"
   - "3.6"
   - "3.6-dev"
-  - "3.7-dev"
 
 install:
   # install LXD
@@ -33,12 +32,6 @@ install:
   - sudo lxc config trust add client.crt
   - mkdir ~/.config/lxc-client
   - mv client.* ~/.config/lxc-client/.
-  # install project requirements
-  - pip install -e .
-  - pip install -r tests/requirements.txt
 
 script:
   - python setup.py test
-
-after_failure:
-  - tail -n +1 /tmp/PIPER-*/*.err

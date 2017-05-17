@@ -1,7 +1,11 @@
-from typing import Dict, List
+from typing import Dict, Any
+
+from piper_lxd.models.exceptions import JobException
 
 
 class Job:
+
+    COMMAND_PREFIX = 'piper'
 
     COMMAND_CWD = 'cd "{}"'
 
@@ -11,7 +15,7 @@ class Job:
 
     COMMAND_START = '\n'.join([
         'if [ $PIPER_GLOB_EXIT = 0 ]; then',
-        'printf "::piper_lxd-ci:command:{}:start:%d::\\n" `date +%s`;',
+        'printf "::' + COMMAND_PREFIX + ':command:{}:start:%d::\\n" `date +%s`;',
         'fi;',
         'if [ $PIPER_GLOB_EXIT = 0 ]; then',
     ])
@@ -21,7 +25,7 @@ class Job:
         'fi;',
         'if [ $PIPER_GLOB_EXIT = 0 ]; then',
         'PIPER_GLOB_EXIT=$PIPER_PREV_EXIT;',
-        'printf "::piper_lxd-ci:command:{}:end:%d:%d::\\n" `date +%s` $PIPER_PREV_EXIT;',
+        'printf "::' + COMMAND_PREFIX + ':command:{}:end:%d:%d::\\n" `date +%s` $PIPER_PREV_EXIT;',
         'fi;',
     ])
 
@@ -29,7 +33,7 @@ class Job:
 
     AFTER_FAILURE_START = '\n'.join([
         'if [ $PIPER_GLOB_EXIT != 0 ]; then',
-        'printf "::piper_lxd-ci:after_failure:{}:start:%d::\\n" `date +%s`;',
+        'printf "::' + COMMAND_PREFIX + ':after_failure:{}:start:%d::\\n" `date +%s`;',
         'fi;',
         'if [ $PIPER_GLOB_EXIT != 0 ]; then',
     ])
@@ -38,31 +42,72 @@ class Job:
         'PIPER_PREV_EXIT=$?;',
         'fi;',
         'if [ $PIPER_GLOB_EXIT != 0 ]; then',
-        'printf "::piper_lxd-ci:after_failure:{}:end:%d:%d::\\n" `date +%s` $PIPER_PREV_EXIT;',
+        'printf "::' + COMMAND_PREFIX + ':after_failure:{}:end:%d:%d::\\n" `date +%s` $PIPER_PREV_EXIT;',
         'fi;',
     ])
 
-    def __init__(
-        self,
-        commands: List[str],
-        secret: str,
-        image: str,
-        after_failure: List[str],
-        env: Dict[str, str],
-        cwd: str,
-        wait_for_network: bool,
-    ):
-        self._commands = commands
-        self._secret = secret
-        self._image = image
-        self._env = env
-        self._after_failure = after_failure
-        self._cwd = cwd
-        self._wait_for_network = wait_for_network
+    def __init__(self, job: Dict[str, Any]):
+        if 'secret' not in job:
+            raise JobException(None)
+        self._secret = job['secret']
+
+        if 'commands' not in job:
+            raise JobException(self._secret)
+        if not isinstance(job['commands'], list):
+            raise JobException(self._secret)
+        if 'image' not in job:
+            raise JobException(self._secret)
+        if not isinstance(job['image'], str):
+            raise JobException(self._secret)
+        if 'env' in job:
+            if not isinstance(job['env'], dict):
+                raise JobException(self._secret)
+            for k, v in job['env'].items():
+                if not isinstance(k, str) or type(k) not in [str, int, bool]:
+                    raise JobException(self._secret)
+        if 'after_failure' in job and not isinstance(job['after_failure'], list):
+            raise JobException(self._secret)
+        if 'repository' not in job:
+            raise JobException(self._secret)
+        if not isinstance(job['repository'], dict):
+            raise JobException(self._secret)
+        if 'origin' not in job['repository']:
+            raise JobException(self._secret)
+        if not isinstance(job['repository']['origin'], str):
+            raise JobException(self._secret)
+        if 'branch' not in job['repository']:
+            raise JobException(self._secret)
+        if not isinstance(job['repository']['branch'], str):
+            raise JobException(self._secret)
+        if 'commit' not in job['repository']:
+            raise JobException(self._secret)
+        if not isinstance(job['repository']['commit'], str):
+            raise JobException(self._secret)
+
+        self._after_failure = job['after_failure'] if 'after_failure' in job else []
+        self._commands = job['commands']
+        self._env = job['env'] if 'env' in job else {}
+        self._image = job['image']
+        self._origin = job['repository']['origin']
+        self._branch = job['repository']['branch']
+        self._commit = job['repository']['commit']
+        self._cwd = '/piper'
 
     @property
     def commands(self):
         return self._commands
+
+    @property
+    def origin(self):
+        return self._origin
+
+    @property
+    def branch(self):
+        return self._branch
+
+    @property
+    def commit(self):
+        return self._commit
 
     @property
     def secret(self):
@@ -93,8 +138,7 @@ class Job:
     def script(self):
         script = list()
         script.append(self.COMMAND_CWD.format(self._cwd))
-        if self._wait_for_network:
-            script.append(self.COMMAND_WAIT_FOR_NETWORK)
+        script.append(self.COMMAND_WAIT_FOR_NETWORK)
 
         script.append(self.COMMAND_FIRST)
 
