@@ -2,26 +2,24 @@ from ws4py.client import WebSocketBaseClient
 from ws4py.manager import WebSocketManager
 from time import sleep
 from enum import Enum
-from collections import deque
+from io import StringIO
 
 
 class BufferHandler:
 
     def __init__(self):
-        self._mem = deque()
-
-    @property
-    def path(self):
-        return self._path
+        self._mem = StringIO()
 
     def on_message(self, data):
-        self._mem.append(data)
+        self._mem.write(data)
 
     def on_close(self):
-        del self._mem
+        self._mem.close()
 
     def pop(self):
-        return ''.join(self._mem)
+        data = self._mem.getvalue()
+        self._mem.truncate(0)
+        return data
 
 
 class ScriptStatus(Enum):

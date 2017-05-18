@@ -2,7 +2,6 @@ import logging
 import os
 import uuid
 from enum import Enum
-from time import sleep
 from contextlib import contextmanager
 
 import pylxd
