@@ -9,7 +9,19 @@ class Job:
 
     COMMAND_CWD = 'cd "{}"'
 
-    COMMAND_WAIT_FOR_NETWORK = 'sleep 5'  # FIXME
+    COMMAND_WAIT_FOR_NETWORK = '\n'.join([
+        'i=1; d=0',
+        'while [ $i -le 50 ]; do',
+        'i=$(($i + 1))',
+        'if [ -z "$(ip route get 8.8.8.8 2>/dev/null | grep -v unreachable)" ]; then',
+        'sleep 0.1; continue',
+        'fi',
+        'd=1; break;',
+        'done',
+        'if [ $d -eq 0 ]; then',
+        'exit 1',
+        'fi',
+    ])
 
     COMMAND_FIRST = 'PIPER_GLOB_EXIT=0'
 
