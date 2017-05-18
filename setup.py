@@ -42,5 +42,6 @@ setup(
     ],
     tests_require=[
         'pytest',
+        'pytest-timeout',
     ],
 )

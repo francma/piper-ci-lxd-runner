@@ -1,8 +1,7 @@
 import logging
 import os
-import uuid
-from enum import Enum
-from contextlib import contextmanager
+import time
+import multiprocessing
 
 import pylxd
 import pylxd.exceptions
@@ -10,14 +9,8 @@ import requests
 
 from piper_lxd.models.script import Script, ScriptStatus
 from piper_lxd.models import git
-from piper_lxd.models.job import Job
+from piper_lxd.models.job import Job, JobStatus
 from piper_lxd.models.exceptions import *
-
-
-class Status(Enum):
-    COMPLETED = 'COMPLETED'
-    RUNNING = 'RUNNING'
-    ERROR = 'ERROR'
 
 
 class Runner:
@@ -47,12 +40,14 @@ class Runner:
         while True:
             data = self._fetch_job()
             if not data:
+                time.sleep(self._runner_interval)
                 continue
 
             try:
                 job = Job(data)
             except JobException as e:
-                self._report_status(e.secret, Status.ERROR)
+                self._report_status(e.secret, JobStatus.ERROR)
+                time.sleep(self._runner_interval)
                 continue
 
             clone_dir = os.path.join(self._runner_repository_dir, job.secret)
@@ -61,18 +56,29 @@ class Runner:
             try:
                 git.clone(job.origin, job.branch, job.commit, clone_dir)
             except CloneException:
-                self._report_status(job.secret, Status.ERROR)
+                self._report_status(job.secret, JobStatus.ERROR)
+                time.sleep(self._runner_interval)
                 continue
 
-            with self._execute(job, clone_dir) as script:
+            with Script(job, clone_dir, self._client, self._lxd_profiles) as script:
+                status = None
                 while script.status is ScriptStatus.RUNNING:
                     script.poll(3000)
                     output = script.pop_output()
-                    self._report_status(job.secret, Status.RUNNING, output)
-
-                script.poll()
+                    status = self._report_status(job.secret, JobStatus.RUNNING, output)
+                    if status is not JobStatus.RUNNING:
+                        logging.info('Job(secret = {}) received status = {}, stopping'.format(job.secret, status))
+                        break
+                script_status = script.status
                 output = script.pop_output()
-                self._report_status(job.secret, Status.COMPLETED, output)
+
+            if script_status is ScriptStatus.ERROR:
+                self._report_status(job.secret, JobStatus.ERROR)
+            else:
+                if status is JobStatus.RUNNING:
+                    self._report_status(job.secret, JobStatus.COMPLETED, output)
+                elif status is not JobStatus.NOT_RESPONDING:
+                    self._report_status(job.secret, status)
 
     def _fetch_job(self):
         try:
@@ -87,39 +93,20 @@ class Runner:
 
         return response.json()
 
-    @contextmanager
-    def _execute(self, job: Job, clone_dir):
-        container = None
-        container_name = 'piper' + uuid.uuid4().hex
-        container_config = {
-            'name': container_name,
-            'profiles': self._lxd_profiles,
-            'source': job.lxd_source,
-            'devices': {
-                'piper_repository': {
-                    'type': 'disk',
-                    'path': '/piper',
-                    'source': clone_dir,
-                }
-            }
-        }
-
-        container = self._client.containers.create(container_config, wait=True)
-        container.start(wait=True)
-        command = Script(container, ['/bin/ash', '-c', job.script], job.env)
-        yield command
-
-        if container is not None:
-            try:
-                container.stop(wait=True)
-            except pylxd.exceptions.LXDAPIException as e:
-                logging.warning(e)
-
-            container.delete()
-
-    def _report_status(self, secret: str, status: Status, data=None):
+    def _report_status(self, secret: str, status: ScriptStatus, data=None) -> JobStatus:
         url = self.job_status_url(secret, status)
-        requests.post(url, headers={'content-type': 'text/plain'}, data=data)
+        for x in range(30):
+            try:
+                response = requests.post(url, headers={'content-type': 'text/plain'}, data=data)
+                break
+            except requests.RequestException as e:
+                logging.warning('Report status to {} failed. Error: {}'.format(self.driver_endpoint, e))
+                if x != 30:
+                    time.sleep(1)
+
+        js = response.json()
+
+        return JobStatus[js['status']]
 
     @property
     def driver_endpoint(self):
@@ -129,5 +116,5 @@ class Runner:
     def fetch_job_url(self):
         return '{}/job-queue/{}'.format(self.driver_endpoint, self._runner_token)
 
-    def job_status_url(self, secret: str, status: Status):
+    def job_status_url(self, secret: str, status: ScriptStatus):
         return '{}/job-status/{}?status={}'.format(self.driver_endpoint, secret, status)

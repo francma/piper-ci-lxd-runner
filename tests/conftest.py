@@ -5,7 +5,7 @@ import shutil
 
 import pytest
 
-from piper_lxd.models.runner import Runner, Status
+from piper_lxd.models.runner import Runner
 
 
 @pytest.fixture(scope="session", autouse=True)

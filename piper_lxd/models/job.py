@@ -1,6 +1,15 @@
 from typing import Dict, Any
+from enum import Enum
 
 from piper_lxd.models.exceptions import JobException
+
+
+class JobStatus(Enum):
+    RUNNING = 'RUNNING'
+    ERROR = 'ERROR'
+    CANCELED = 'CANCELED'
+    NOT_RESPONDING = 'NOT_RESPONDING'
+    COMPLETED = 'COMPLETED'
 
 
 class Job:
