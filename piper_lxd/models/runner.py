@@ -13,7 +13,10 @@ from piper_lxd.models.job import Job, JobStatus
 from piper_lxd.models.exceptions import *
 
 
-class Runner:
+LOG = logging.getLogger(__name__)
+
+
+class Runner(multiprocessing.Process):
 
     def __init__(
             self,
@@ -27,6 +30,7 @@ class Runner:
             lxd_cert=None,
             lxd_verify=False
     ):
+        super().__init__()
         cert = (os.path.expanduser(lxd_cert), os.path.expanduser(lxd_key)) if lxd_key and lxd_cert else None
         self._client = pylxd.Client(cert=cert, endpoint=lxd_endpoint, verify=lxd_verify)
         self._driver_endpoint = driver_endpoint
@@ -67,7 +71,7 @@ class Runner:
                     output = script.pop_output()
                     status = self._report_status(job.secret, JobStatus.RUNNING, output)
                     if status is not JobStatus.RUNNING:
-                        logging.info('Job(secret = {}) received status = {}, stopping'.format(job.secret, status))
+                        LOG.info('Job(secret = {}) received status = {}, stopping'.format(job.secret, status))
                         break
                 script_status = script.status
                 output = script.pop_output()
@@ -84,11 +88,11 @@ class Runner:
         try:
             response = requests.get(self.fetch_job_url)
         except requests.exceptions.ConnectionError:
-            logging.warning('Job fetch from {} failed. Connection error.'.format(self.driver_endpoint))
+            LOG.warning('Job fetch from {} failed. Connection error.'.format(self.driver_endpoint))
             return None
 
         if not response.content:
-            logging.debug('No job available from {}.'.format(self.driver_endpoint))
+            LOG.debug('No job available from {}.'.format(self.driver_endpoint))
             return None
 
         return response.json()
@@ -100,7 +104,7 @@ class Runner:
                 response = requests.post(url, headers={'content-type': 'text/plain'}, data=data)
                 break
             except requests.RequestException as e:
-                logging.warning('Report status to {} failed. Error: {}'.format(self.driver_endpoint, e))
+                LOG.warning('Report status to {} failed. Error: {}'.format(self.driver_endpoint, e))
                 if x != 30:
                     time.sleep(1)
 

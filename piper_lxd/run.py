@@ -7,6 +7,9 @@ import click
 from piper_lxd.models.runner import Runner
 
 DEFAULT_INTERVAL = 2
+DEFAULT_WORKERS = 1
+
+LOG = logging.getLogger(__name__)
 
 
 @click.command()
@@ -46,6 +49,11 @@ DEFAULT_INTERVAL = 2
     help='Runner\'s secret token used as identification',
 )
 @click.option(
+    '--runner-workers',
+    help='Number of worker processes',
+    type=click.INT,
+)
+@click.option(
     '--runner-repository-dir',
     help='Base directory where remote repositories (GIT) are cloned',
 )
@@ -57,6 +65,7 @@ def run(
     runner_token,
     runner_interval,
     runner_repository_dir,
+    runner_workers,
     driver_endpoint,
     lxd_profiles,
     lxd_key,
@@ -70,27 +79,27 @@ def run(
         # load config from defined location
         config_file = configparser.ConfigParser()
         parsed_file = config_file.read(config)
-        logging.info('Loaded configuration from {}'.format(parsed_file))
+        LOG.info('Loaded configuration from {}'.format(parsed_file))
 
     if not runner_token:
         try:
             runner_token = config_file['runner']['token']
         except KeyError:
-            logging.fatal('Empty runner token, exiting...')
+            LOG.fatal('Empty runner token, exiting...')
             exit(1)
 
     if not runner_repository_dir:
         try:
             runner_repository_dir = config_file['runner']['repository_dir']
         except KeyError:
-            logging.fatal('No repository base directory set, exiting...')
+            LOG.fatal('No repository base directory set, exiting...')
             exit(1)
 
     if not driver_endpoint:
         try:
             driver_endpoint = config_file['driver']['url']
         except KeyError:
-            logging.fatal('Driver endpoint not set, exiting...')
+            LOG.fatal('Driver endpoint not set, exiting...')
             exit(1)
 
     if lxd_verify is None:
@@ -131,20 +140,51 @@ def run(
         except KeyError:
             runner_interval = DEFAULT_INTERVAL
 
-    runner = Runner(
-        runner_token=runner_token,
-        runner_repository_dir=runner_repository_dir,
-        driver_endpoint=driver_endpoint,
-        lxd_profiles=lxd_profiles,
-        runner_interval=runner_interval,
-        lxd_endpoint=lxd_endpoint,
-        lxd_cert=lxd_cert,
-        lxd_key=lxd_key,
-        lxd_verify=lxd_verify
-    )
+    if not runner_workers:
+        try:
+            runner_workers = int(config_file['runner']['workers'])
+        except KeyError:
+            runner_workers = DEFAULT_WORKERS
 
-    runner.run()
+    LOG.debug('Config:')
+    LOG.debug('  runner_token = {}'.format(runner_token))
+    LOG.debug('  runner_repository_dir = {}'.format(runner_repository_dir))
+    LOG.debug('  runner_interval = {}'.format(runner_interval))
+    LOG.debug('  driver_endpoint = {}'.format(driver_endpoint))
+    LOG.debug('  lxd_profiles = {}'.format(lxd_profiles))
+    LOG.debug('  lxd_endpoint = {}'.format(lxd_profiles))
+    LOG.debug('  lxd_cert = {}'.format(lxd_profiles))
+    LOG.debug('  lxd_key = {}'.format(lxd_profiles))
+    LOG.debug('  lxd_verify = {}'.format(lxd_profiles))
 
+    runners = list()
+    try:
+        for i in range(runner_workers):
+            r = Runner(
+                runner_token=runner_token,
+                runner_repository_dir=runner_repository_dir,
+                driver_endpoint=driver_endpoint,
+                lxd_profiles=lxd_profiles,
+                runner_interval=runner_interval,
+                lxd_endpoint=lxd_endpoint,
+                lxd_cert=lxd_cert,
+                lxd_key=lxd_key,
+                lxd_verify=lxd_verify
+            )
+            runners.append(r)
+            r.start()
+
+        for r in runners:
+            r.join()
+    except KeyboardInterrupt:
+        for r in runners:
+            LOG.info('Terminating worker(PID={})'.format(r.pid))
+            r.terminate()
+
+logging.basicConfig()
+LOG.setLevel(logging.DEBUG)
+
+LOG.info('Starting piper-lxd')
 
 if __name__ == '__main__':
     run()
