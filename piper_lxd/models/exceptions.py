@@ -15,3 +15,7 @@ class JobException(PiperException):
     def __init__(self, secret, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.secret = secret
+
+
+class ReportStatusFail(PiperException):
+    pass

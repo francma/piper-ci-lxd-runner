@@ -9,7 +9,7 @@ import requests
 
 from piper_lxd.models.script import Script, ScriptStatus
 from piper_lxd.models import git
-from piper_lxd.models.job import Job, JobStatus
+from piper_lxd.models.job import Job, RequestJobStatus, ResponseJobStatus
 from piper_lxd.models.exceptions import *
 
 
@@ -48,41 +48,42 @@ class Runner(multiprocessing.Process):
                 continue
 
             try:
-                job = Job(data)
-            except JobException as e:
-                self._report_status(e.secret, JobStatus.ERROR)
-                time.sleep(self._runner_interval)
-                continue
+                try:
+                    job = Job(data)
+                except JobException as e:
+                    self._report_status(e.secret, RequestJobStatus.ERROR)
+                    time.sleep(self._runner_interval)
+                    continue
 
-            clone_dir = os.path.join(self._runner_repository_dir, job.secret)
-            os.makedirs(clone_dir)
+                clone_dir = os.path.join(self._runner_repository_dir, job.secret)
+                os.makedirs(clone_dir)
 
-            try:
-                git.clone(job.origin, job.branch, job.commit, clone_dir)
-            except CloneException:
-                self._report_status(job.secret, JobStatus.ERROR)
-                time.sleep(self._runner_interval)
-                continue
+                try:
+                    git.clone(job.origin, job.branch, job.commit, clone_dir)
+                except CloneException:
+                    self._report_status(job.secret, RequestJobStatus.ERROR)
+                    time.sleep(self._runner_interval)
+                    continue
 
-            with Script(job, clone_dir, self._client, self._lxd_profiles) as script:
-                status = None
-                while script.status is ScriptStatus.RUNNING:
-                    script.poll(3000)
+                with Script(job, clone_dir, self._client, self._lxd_profiles) as script:
+                    status = None
+                    while script.status is ScriptStatus.RUNNING:
+                        script.poll(3000)
+                        output = script.pop_output()
+                        status = self._report_status(job.secret, RequestJobStatus.RUNNING, output)
+                        if status is not ResponseJobStatus.OK:
+                            LOG.info('Job(secret = {}) received status = {}, stopping'.format(job.secret, status))
+                            break
+                    script_status = script.status
                     output = script.pop_output()
-                    status = self._report_status(job.secret, JobStatus.RUNNING, output)
-                    if status is not JobStatus.RUNNING:
-                        LOG.info('Job(secret = {}) received status = {}, stopping'.format(job.secret, status))
-                        break
-                script_status = script.status
-                output = script.pop_output()
 
-            if script_status is ScriptStatus.ERROR:
-                self._report_status(job.secret, JobStatus.ERROR)
-            else:
-                if status is JobStatus.RUNNING:
-                    self._report_status(job.secret, JobStatus.COMPLETED, output)
-                elif status is not JobStatus.NOT_RESPONDING:
-                    self._report_status(job.secret, status)
+                if status is ResponseJobStatus.OK:
+                    if script_status is ScriptStatus.ERROR:
+                        self._report_status(job.secret, RequestJobStatus.ERROR)
+                    elif script_status is ScriptStatus.COMPLETED:
+                        self._report_status(job.secret, RequestJobStatus.COMPLETED, output)
+            except ReportStatusFail:
+                LOG.warning('Giving up reporting status to {} '.format(self.driver_endpoint))
 
     def _fetch_job(self):
         try:
@@ -97,20 +98,23 @@ class Runner(multiprocessing.Process):
 
         return response.json()
 
-    def _report_status(self, secret: str, status: ScriptStatus, data=None) -> JobStatus:
+    def _report_status(self, secret: str, status: ScriptStatus, data=None) -> ResponseJobStatus:
         url = self.job_status_url(secret, status)
-        for x in range(30):
+        for x in range(8):
             try:
+                LOG.debug('Reporting status %s to %s' % status, url)
                 response = requests.post(url, headers={'content-type': 'text/plain'}, data=data)
                 break
             except requests.RequestException as e:
                 LOG.warning('Report status to {} failed. Error: {}'.format(self.driver_endpoint, e))
-                if x != 30:
+                if x != 8:
                     time.sleep(1)
+                else:
+                    raise ReportStatusFail
 
         js = response.json()
 
-        return JobStatus[js['status']]
+        return ResponseJobStatus[js['status']]
 
     @property
     def driver_endpoint(self):

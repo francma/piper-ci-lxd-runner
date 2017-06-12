@@ -1,66 +1,18 @@
-import json
-from typing import List, Dict
 import re
 import io
+import urllib3
 
 import pytest
 
-from piper_lxd.models.runner import Runner
-from piper_lxd.models.job import Job, JobStatus
+from piper_lxd.models.runner import Runner, ReportStatusFail
+from piper_lxd.models.job import Job, ResponseJobStatus, RequestJobStatus
+
+urllib3.disable_warnings()
 
 
-def get_fetch_function(jobs: List):
-    def fn(self):
-        try:
-            job = jobs.pop()
-        except IndexError:
-            raise StopIteration
-        with open('tests/jobs/{}.json'.format(job)) as fd:
-            return json.load(fd)
-
-    return fn
-
-
-def get_report_function(outputs: Dict[str, str], statuses: Dict[str, List[JobStatus]], force_status=None):
-    def fn(self, secret: str, status: JobStatus, data=None):
-        if secret not in statuses:
-            statuses[secret] = list()
-        if secret not in outputs:
-            outputs[secret] = ''
-        statuses[secret].append(status)
-        if data is not None:
-            outputs[secret] += data
-
-        return status if force_status is None else force_status
-
-    return fn
-
-
-def get_clone_function():
-    def fn(origin, branch, commit, destination: str, ssh_keys_path=None):
-        return
-
-    return fn
-
-
-def _run(runner, jobs, monkeypatch, force_status=None):
-    output = dict()
-    statuses = dict()
-    monkeypatch.setattr('piper_lxd.models.runner.Runner._fetch_job', get_fetch_function(jobs))
-    monkeypatch.setattr('piper_lxd.models.runner.Runner._report_status', get_report_function(output, statuses, force_status))
-
-    try:
-        runner.run()
-    except StopIteration:
-        pass
-
-    return output, statuses
-
-
-def test_fail(runner: Runner, monkeypatch):
-    monkeypatch.setattr('piper_lxd.models.git.clone', get_clone_function())
-    output, statuses = _run(runner, ['fail'], monkeypatch)
-    assert statuses['fail'][-1] is JobStatus.COMPLETED
+def test_fail(runner: Runner, empty_clone):
+    output, statuses = runner.run_test(['fail'])
+    assert statuses['fail'][-1] is RequestJobStatus.COMPLETED
 
     with io.StringIO(output['fail']) as st:
         assert re.match(r'^::' + Job.COMMAND_PREFIX + ':command:0:start:\d+::$', st.readline())
@@ -69,10 +21,9 @@ def test_fail(runner: Runner, monkeypatch):
         assert st.readline() == ''
 
 
-def test_sleep(runner: Runner, monkeypatch):
-    monkeypatch.setattr('piper_lxd.models.git.clone', get_clone_function())
-    output, statuses = _run(runner, ['sleep'], monkeypatch)
-    assert statuses['sleep'][-1] is JobStatus.COMPLETED
+def test_sleep(runner: Runner, empty_clone):
+    output, statuses = runner.run_test(['sleep'])
+    assert statuses['sleep'][-1] is RequestJobStatus.COMPLETED
 
     with io.StringIO(output['sleep']) as st:
         assert re.match(r'^::' + Job.COMMAND_PREFIX + ':command:0:start:\d+::$', st.readline())
@@ -87,9 +38,9 @@ def test_sleep(runner: Runner, monkeypatch):
         assert st.readline() == ''
 
 
-def test_clone(runner: Runner, monkeypatch):
-    output, statuses = _run(runner, ['clone'], monkeypatch)
-    assert statuses['clone'][-1] is JobStatus.COMPLETED
+def test_clone(runner: Runner):
+    output, statuses = runner.run_test(['clone'])
+    assert statuses['clone'][-1] is RequestJobStatus.COMPLETED
 
     with io.StringIO(output['clone']) as st:
         assert re.match(r'^::' + Job.COMMAND_PREFIX + ':command:0:start:\d+::$', st.readline())
@@ -122,10 +73,9 @@ def test_clone(runner: Runner, monkeypatch):
         assert st.readline() == ''
 
 
-def test_env(runner: Runner, monkeypatch):
-    monkeypatch.setattr('piper_lxd.models.git.clone', get_clone_function())
-    output, statuses = _run(runner, ['env'], monkeypatch)
-    assert statuses['env'][-1] is JobStatus.COMPLETED
+def test_env(runner: Runner, empty_clone):
+    output, statuses = runner.run_test(['env'])
+    assert statuses['env'][-1] is RequestJobStatus.COMPLETED
 
     with io.StringIO(output['env']) as st:
         assert re.match(r'^::' + Job.COMMAND_PREFIX + ':command:0:start:\d+::$', st.readline())
@@ -138,10 +88,9 @@ def test_env(runner: Runner, monkeypatch):
         assert st.readline() == ''
 
 
-def test_after_failure(runner: Runner, monkeypatch):
-    monkeypatch.setattr('piper_lxd.models.git.clone', get_clone_function())
-    output, statuses = _run(runner, ['after_failure'], monkeypatch)
-    assert statuses['after_failure'][-1] is JobStatus.COMPLETED
+def test_after_failure(runner: Runner, empty_clone):
+    output, statuses = runner.run_test(['after_failure'])
+    assert statuses['after_failure'][-1] is RequestJobStatus.COMPLETED
 
     with io.StringIO(output['after_failure']) as st:
         assert re.match(r'^::' + Job.COMMAND_PREFIX + ':command:0:start:\d+::$', st.readline())
@@ -155,10 +104,9 @@ def test_after_failure(runner: Runner, monkeypatch):
         assert st.readline() == ''
 
 
-def test_cd(runner: Runner, monkeypatch):
-    monkeypatch.setattr('piper_lxd.models.git.clone', get_clone_function())
-    output, statuses = _run(runner, ['cd'], monkeypatch)
-    assert statuses['cd'][-1] is JobStatus.COMPLETED
+def test_cd(runner: Runner, empty_clone):
+    output, statuses = runner.run_test(['cd'])
+    assert statuses['cd'][-1] is RequestJobStatus.COMPLETED
 
     with io.StringIO(output['cd']) as st:
         assert re.match(r'^::' + Job.COMMAND_PREFIX + ':command:0:start:\d+::$', st.readline())
@@ -178,11 +126,10 @@ def test_cd(runner: Runner, monkeypatch):
         assert st.readline() == ''
 
 
-def test_multiple(runner: Runner, monkeypatch):
-    monkeypatch.setattr('piper_lxd.models.git.clone', get_clone_function())
-    output, statuses = _run(runner, ['multiple_1', 'multiple_2'], monkeypatch)
-    assert statuses['multiple_1'][-1] is JobStatus.COMPLETED
-    assert statuses['multiple_2'][-1] is JobStatus.COMPLETED
+def test_multiple(runner: Runner, empty_clone):
+    output, statuses = runner.run_test(['multiple_1', 'multiple_2'])
+    assert statuses['multiple_1'][-1] is RequestJobStatus.COMPLETED
+    assert statuses['multiple_2'][-1] is RequestJobStatus.COMPLETED
 
     with io.StringIO(output['multiple_1']) as st:
         assert re.match(r'^::' + Job.COMMAND_PREFIX + ':command:0:start:\d+::$', st.readline())
@@ -198,13 +145,15 @@ def test_multiple(runner: Runner, monkeypatch):
 
 
 @pytest.mark.timeout(60)
-def test_cancel(runner: Runner, monkeypatch):
-    monkeypatch.setattr('piper_lxd.models.git.clone', get_clone_function())
-    output, statuses = _run(runner, ['sleep_long'], monkeypatch, JobStatus.CANCELED)
-    assert statuses['sleep_long'][-1] is JobStatus.CANCELED
+def test_cancel(runner: Runner, empty_clone):
+    output, statuses = runner.run_test(['sleep_long'], ResponseJobStatus.CANCEL)
 
 
-@pytest.mark.timeout(60)
-def test_not_responding(runner: Runner, monkeypatch):
-    monkeypatch.setattr('piper_lxd.models.git.clone', get_clone_function())
-    output, statuses = _run(runner, ['sleep_long'], monkeypatch, JobStatus.NOT_RESPONDING)
+# @pytest.mark.timeout(10)
+# def test_not_responding(runner: Runner, empty_clone, monkeypatch):
+#     def raise_exc(a, b, c, d):
+#         print(1000*'RAISE')
+#         raise ReportStatusFail
+#
+#     monkeypatch.setattr('piper_lxd.models.runner.Runner._report_status', raise_exc)
+#     output, statuses = runner.run_test(['sleep_long'])

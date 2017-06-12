@@ -4,12 +4,16 @@ from enum import Enum
 from piper_lxd.models.exceptions import JobException
 
 
-class JobStatus(Enum):
-    RUNNING = 'RUNNING'
+class ResponseJobStatus(Enum):
+    OK = 'OK'
+    CANCEL = 'CANCEL'
     ERROR = 'ERROR'
-    CANCELED = 'CANCELED'
-    NOT_RESPONDING = 'NOT_RESPONDING'
+
+
+class RequestJobStatus(Enum):
+    RUNNING = 'RUNNING'
     COMPLETED = 'COMPLETED'
+    ERROR = 'ERROR'
 
 
 class Job:
