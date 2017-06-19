@@ -36,7 +36,6 @@ setup(
     install_requires=[
         'ws4py',
         'click',
-        'flask',
         'requests',
         'pylxd',
     ],
