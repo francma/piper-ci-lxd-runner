@@ -92,12 +92,14 @@ class Script:
 
         self._container = self._client.containers.create(container_config, wait=True)
         self._container.start(wait=True)
-        response = self._client.api.containers[container_name].exec.post(json={
+        env = {k: str(v) for k, v in self._job.env.items()}
+        config = {
             'command': ['/bin/ash', '-c', self._job.script],
             'wait-for-websocket': True,
             'interactive': False,
-            'environment': self._job.env,
-        })
+            'environment': env,
+        }
+        response = self._client.api.containers[container_name].exec.post(json=config)
 
         fds = response.json()['metadata']['metadata']['fds']
         self.operation_id = response.json()['operation'].split('/')[-1]
