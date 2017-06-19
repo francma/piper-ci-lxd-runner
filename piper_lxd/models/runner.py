@@ -51,7 +51,9 @@ class Runner(multiprocessing.Process):
                 try:
                     job = Job(data)
                 except JobException as e:
-                    self._report_status(e.secret, RequestJobStatus.ERROR)
+                    LOG.error(e)
+                    if e.secret:
+                        self._report_status(e.secret, RequestJobStatus.ERROR)
                     time.sleep(self._runner_interval)
                     continue
 
@@ -84,6 +86,9 @@ class Runner(multiprocessing.Process):
                         self._report_status(job.secret, RequestJobStatus.COMPLETED, output)
             except ReportStatusFail:
                 LOG.warning('Giving up reporting status to {} '.format(self.driver_endpoint))
+            except pylxd.exceptions.LXDAPIException as e:
+                self._report_status(job.secret, RequestJobStatus.ERROR)
+                LOG.error('LXD error: {}'.format(e))
 
     def _fetch_job(self):
         try:
@@ -98,11 +103,11 @@ class Runner(multiprocessing.Process):
 
         return response.json()
 
-    def _report_status(self, secret: str, status: ScriptStatus, data=None) -> ResponseJobStatus:
+    def _report_status(self, secret: str, status: RequestJobStatus, data=None) -> ResponseJobStatus:
         url = self.job_status_url(secret, status)
         for x in range(8):
             try:
-                LOG.debug('Reporting status %s to %s' % status, url)
+                LOG.debug('Reporting status {} to {}'.format(status, url))
                 response = requests.post(url, headers={'content-type': 'text/plain'}, data=data)
                 break
             except requests.RequestException as e:

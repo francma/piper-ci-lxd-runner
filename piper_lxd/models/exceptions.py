@@ -12,8 +12,8 @@ class CloneException(PiperException):
 
 class JobException(PiperException):
 
-    def __init__(self, secret, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, message, secret):
+        super().__init__(message)
         self.secret = secret
 
 

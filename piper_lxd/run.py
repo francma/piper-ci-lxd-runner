@@ -152,10 +152,10 @@ def run(
     LOG.debug('  runner_interval = {}'.format(runner_interval))
     LOG.debug('  driver_endpoint = {}'.format(driver_endpoint))
     LOG.debug('  lxd_profiles = {}'.format(lxd_profiles))
-    LOG.debug('  lxd_endpoint = {}'.format(lxd_profiles))
-    LOG.debug('  lxd_cert = {}'.format(lxd_profiles))
-    LOG.debug('  lxd_key = {}'.format(lxd_profiles))
-    LOG.debug('  lxd_verify = {}'.format(lxd_profiles))
+    LOG.debug('  lxd_endpoint = {}'.format(lxd_endpoint))
+    LOG.debug('  lxd_cert = {}'.format(lxd_cert))
+    LOG.debug('  lxd_key = {}'.format(lxd_key))
+    LOG.debug('  lxd_verify = {}'.format(lxd_verify))
 
     runners = list()
     try:
