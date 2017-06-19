@@ -122,7 +122,7 @@ class Runner(multiprocessing.Process):
 
     @property
     def fetch_job_url(self):
-        return '{}/job-queue/{}'.format(self.driver_endpoint, self._runner_token)
+        return '{}/jobs/queue/{}'.format(self.driver_endpoint, self._runner_token)
 
     def job_status_url(self, secret: str, status: ScriptStatus):
-        return '{}/job-status/{}?status={}'.format(self.driver_endpoint, secret, status)
+        return '{}/jobs/report/{}?status={}'.format(self.driver_endpoint, secret, status.value)
