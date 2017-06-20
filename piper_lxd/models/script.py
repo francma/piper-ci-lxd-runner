@@ -1,13 +1,15 @@
-from ws4py.client import WebSocketBaseClient
-from ws4py.manager import WebSocketManager
 from time import sleep
 from enum import Enum
 from io import StringIO
 import uuid
 import logging
+from typing import List
+from datetime import timedelta
 
 import pylxd
 import pylxd.exceptions
+from ws4py.client import WebSocketBaseClient
+from ws4py.manager import WebSocketManager
 
 from piper_lxd.models.job import Job
 
@@ -17,13 +19,13 @@ class BufferHandler:
     def __init__(self):
         self._mem = StringIO()
 
-    def on_message(self, data):
+    def on_message(self, data: str) -> None:
         self._mem.write(data)
 
-    def on_close(self):
+    def on_close(self) -> None:
         self._mem.close()
 
-    def pop(self):
+    def pop(self) -> str:
         data = self._mem.getvalue()
         self._mem.truncate(0)
         self._mem.seek(0)
@@ -39,7 +41,7 @@ class ScriptStatus(Enum):
 
 class Script:
 
-    POLL_TIMEOUT = 100
+    POLL_TIMEOUT = timedelta(milliseconds=100)
 
     class NullWebSocket(WebSocketBaseClient):
 
@@ -52,10 +54,10 @@ class Script:
             self.handler = handler
             super(Script.WebSocket, self).__init__(*args, **kwargs)
 
-        def handshake_ok(self):
+        def handshake_ok(self) -> None:
             self.manager.add(self)
 
-        def received_message(self, message):
+        def received_message(self, message: str) -> None:
             if len(message.data) == 0:
                 self.close()
                 self.manager.remove(self)
@@ -67,30 +69,30 @@ class Script:
 
             self.handler.on_message(decoded)
 
-    def __init__(self, job: Job, cwd: str, client: pylxd.Client, profiles):
+    def __init__(self, job: Job, repository_path: str, lxd_client: pylxd.Client, lxd_profiles: List[str]):
         self._job = job
-        self._client = client
+        self._lxd_client = lxd_client
         self._status = ScriptStatus.CREATED
-        self._cwd = cwd
-        self._profiles = profiles
+        self._repository_path = repository_path
+        self._lxd_profiles = lxd_profiles
 
     def __enter__(self):
         self._container = None
         container_name = 'piper' + uuid.uuid4().hex
         container_config = {
             'name': container_name,
-            'profiles': self._profiles,
+            'profiles': self._lxd_profiles,
             'source': self._job.lxd_source,
             'devices': {
                 'piper_repository': {
                     'type': 'disk',
                     'path': '/piper',
-                    'source': self._cwd,
+                    'source': self._repository_path,
                 }
             }
         }
 
-        self._container = self._client.containers.create(container_config, wait=True)
+        self._container = self._lxd_client.containers.create(container_config, wait=True)
         self._container.start(wait=True)
         env = {k: str(v) for k, v in self._job.env.items()}
         config = {
@@ -99,7 +101,7 @@ class Script:
             'interactive': False,
             'environment': env,
         }
-        response = self._client.api.containers[container_name].exec.post(json=config)
+        response = self._lxd_client.api.containers[container_name].exec.post(json=config)
 
         fds = response.json()['metadata']['metadata']['fds']
         self.operation_id = response.json()['operation'].split('/')[-1]
@@ -109,7 +111,7 @@ class Script:
         stdout_url = '{}?secret={}'.format(websocket_url, fds['1'])
         stderr_url = '{}?secret={}'.format(websocket_url, fds['2'])
 
-        stdin = self.NullWebSocket(self._client.websocket_url)
+        stdin = self.NullWebSocket(self._lxd_client.websocket_url)
         stdin.resource = stdin_url
         stdin.connect()
 
@@ -117,11 +119,11 @@ class Script:
         self.manager.start()
 
         self._handler = BufferHandler()
-        stdout = self.WebSocket(self.manager, self._handler, self._client.websocket_url)
+        stdout = self.WebSocket(self.manager, self._handler, self._lxd_client.websocket_url)
         stdout.resource = stdout_url
         stdout.connect()
 
-        stderr = self.WebSocket(self.manager, self._handler, self._client.websocket_url)
+        stderr = self.WebSocket(self.manager, self._handler, self._lxd_client.websocket_url)
         stderr.resource = stderr_url
         stderr.connect()
         self._status = ScriptStatus.RUNNING
@@ -137,23 +139,23 @@ class Script:
 
             self._container.delete()
 
-    def poll(self, timeout=None):
+    def poll(self, timeout: timedelta=None) -> None:
         if timeout is None:
             while len(self.manager.websockets.values()) > 0:
-                sleep(self.POLL_TIMEOUT / 1000)
+                sleep(self.POLL_TIMEOUT.total_seconds())
 
             self._status = ScriptStatus.COMPLETED
             return
 
-        while timeout > 0:
+        while timeout > timedelta(0):
             if len(self.manager.websockets.values()) == 0:
                 self._status = ScriptStatus.COMPLETED
                 return
 
             if timeout > self.POLL_TIMEOUT:
-                sleep(self.POLL_TIMEOUT / 1000)
+                sleep(self.POLL_TIMEOUT.total_seconds())
             else:
-                sleep(timeout / 1000)
+                sleep(timeout.total_seconds())
 
             timeout -= self.POLL_TIMEOUT
 
@@ -164,8 +166,8 @@ class Script:
         self._status = ScriptStatus.RUNNING
 
     @property
-    def status(self):
+    def status(self) -> ScriptStatus:
         return self._status
 
-    def pop_output(self):
+    def pop_output(self) -> str:
         return self._handler.pop()

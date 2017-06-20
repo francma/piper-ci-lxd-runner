@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import configparser
 import logging
+from datetime import timedelta
 
 import click
 
 from piper_lxd.models.runner import Runner
 
-DEFAULT_INTERVAL = 2
+DEFAULT_INTERVAL = timedelta(seconds=2)
 DEFAULT_WORKERS = 1
 
 LOG = logging.getLogger(__name__)
@@ -28,10 +29,12 @@ LOG = logging.getLogger(__name__)
 @click.option(
     '--lxd-cert',
     help='Client\'s certificate trusted by LXD server',
+    type=click.Path(exists=True),
 )
 @click.option(
     '--lxd-key',
     help='Client\'s key trusted by LXD server',
+    type=click.Path(exists=True),
 )
 @click.option(
     '--lxd-verify',
@@ -56,10 +59,12 @@ LOG = logging.getLogger(__name__)
 @click.option(
     '--runner-repository-dir',
     help='Base directory where remote repositories (GIT) are cloned',
+    type=click.Path(exists=True),
 )
 @click.option(
     '--config',
     help='Configuration file',
+    type=click.Path(exists=True),
 )
 def run(
     runner_token,
@@ -136,7 +141,7 @@ def run(
 
     if not runner_interval:
         try:
-            runner_interval = int(config_file['runner']['interval'])
+            runner_interval = timedelta(seconds=config_file['runner']['interval'])
         except KeyError:
             runner_interval = DEFAULT_INTERVAL
 
@@ -180,6 +185,7 @@ def run(
         for r in runners:
             LOG.info('Terminating worker(PID={})'.format(r.pid))
             r.terminate()
+
 
 logging.basicConfig()
 LOG.setLevel(logging.DEBUG)

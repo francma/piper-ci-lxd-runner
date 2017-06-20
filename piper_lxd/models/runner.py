@@ -2,6 +2,8 @@ import logging
 import os
 import time
 import multiprocessing
+from typing import Dict, Any, Optional
+from datetime import timedelta
 
 import pylxd
 import pylxd.exceptions
@@ -24,7 +26,7 @@ class Runner(multiprocessing.Process):
             runner_token: str,
             driver_endpoint: str,
             lxd_profiles=None,
-            runner_interval=2,
+            runner_interval: timedelta=None,
             lxd_key=None,
             lxd_endpoint=None,
             lxd_cert=None,
@@ -37,10 +39,10 @@ class Runner(multiprocessing.Process):
         self._runner_token = runner_token
         self._lxd_profiles = lxd_profiles if type(lxd_profiles) is list else []
         self._runner_token = runner_token
-        self._runner_interval = runner_interval
+        self._runner_interval = runner_interval if runner_interval else timedelta(seconds=2)
         self._runner_repository_dir = runner_repository_dir
 
-    def run(self):
+    def run(self) -> None:
         while True:
             data = self._fetch_job()
             if not data:
@@ -70,7 +72,7 @@ class Runner(multiprocessing.Process):
                 with Script(job, clone_dir, self._client, self._lxd_profiles) as script:
                     status = None
                     while script.status is ScriptStatus.RUNNING:
-                        script.poll(3000)
+                        script.poll(self._runner_interval)
                         output = script.pop_output()
                         status = self._report_status(job.secret, RequestJobStatus.RUNNING, output)
                         if status is not ResponseJobStatus.OK:
@@ -90,7 +92,7 @@ class Runner(multiprocessing.Process):
                 self._report_status(job.secret, RequestJobStatus.ERROR)
                 LOG.error('LXD error: {}'.format(e))
 
-    def _fetch_job(self):
+    def _fetch_job(self) -> Optional[Dict[str, Any]]:
         try:
             response = requests.get(self.fetch_job_url)
         except requests.exceptions.ConnectionError:
@@ -122,12 +124,12 @@ class Runner(multiprocessing.Process):
         return ResponseJobStatus[js['status']]
 
     @property
-    def driver_endpoint(self):
+    def driver_endpoint(self) -> str:
         return self._driver_endpoint
 
     @property
-    def fetch_job_url(self):
+    def fetch_job_url(self) -> str:
         return '{}/jobs/queue/{}'.format(self.driver_endpoint, self._runner_token)
 
-    def job_status_url(self, secret: str, status: ScriptStatus):
+    def job_status_url(self, secret: str, status: ScriptStatus) -> str:
         return '{}/jobs/report/{}?status={}'.format(self.driver_endpoint, secret, status.value)

@@ -3,7 +3,7 @@ import subprocess
 from piper_lxd.models.exceptions import *
 
 
-def clone(origin, branch, commit, destination: str, ssh_keys_path=None):
+def clone(origin, branch, commit, destination: str, ssh_keys_path=None) -> None:
     env = dict()
     if ssh_keys_path is not None:
         assert type(ssh_keys_path) is list

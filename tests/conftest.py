@@ -31,7 +31,6 @@ def runner(monkeypatch):
         runner_token=token,
         driver_endpoint='http://localhost',
         lxd_profiles=['piper-ci'],
-        runner_interval=2,
         lxd_cert='~/.config/lxc-client/client.crt',
         lxd_key='~/.config/lxc-client/client.key',
         lxd_endpoint='https://127.0.0.1:8443'

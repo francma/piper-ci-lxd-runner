@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 from enum import Enum
 
 from piper_lxd.models.exceptions import JobException
@@ -119,35 +119,35 @@ class Job:
         self._cwd = '/piper'
 
     @property
-    def commands(self):
+    def commands(self) -> List[str]:
         return self._commands
 
     @property
-    def origin(self):
+    def origin(self) -> str:
         return self._origin
 
     @property
-    def branch(self):
+    def branch(self) -> str:
         return self._branch
 
     @property
-    def commit(self):
+    def commit(self) -> str:
         return self._commit
 
     @property
-    def secret(self):
+    def secret(self) -> str:
         return self._secret
 
     @property
-    def image(self):
+    def image(self) -> str:
         return self._image
 
     @property
-    def env(self):
+    def env(self) -> Dict[str, Any]:
         return self._env
 
     @property
-    def lxd_source(self):
+    def lxd_source(self) -> str:
         if self.image.startswith('fingerprint:'):
             return {
                 'type': 'image',
@@ -160,7 +160,7 @@ class Job:
         }
 
     @property
-    def script(self):
+    def script(self) -> str:
         script = list()
         script.append(self.COMMAND_CWD.format(self._cwd))
         script.append(self.COMMAND_WAIT_FOR_NETWORK)
