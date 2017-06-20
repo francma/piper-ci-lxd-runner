@@ -31,8 +31,7 @@ class Runner(multiprocessing.Process):
             lxd_endpoint=None,
             lxd_cert=None,
             lxd_verify=False
-    ):
-        super().__init__()
+    ) -> None:
         cert = (os.path.expanduser(lxd_cert), os.path.expanduser(lxd_key)) if lxd_key and lxd_cert else None
         self._client = pylxd.Client(cert=cert, endpoint=lxd_endpoint, verify=lxd_verify)
         self._driver_endpoint = driver_endpoint
@@ -41,22 +40,23 @@ class Runner(multiprocessing.Process):
         self._runner_token = runner_token
         self._runner_interval = runner_interval if runner_interval else timedelta(seconds=2)
         self._runner_repository_dir = runner_repository_dir
+        super().__init__()
 
     def run(self) -> None:
         while True:
             data = self._fetch_job()
             if not data:
-                time.sleep(self._runner_interval)
+                time.sleep(self._runner_interval.total_seconds())
                 continue
 
             try:
                 try:
                     job = Job(data)
                 except JobException as e:
-                    LOG.error(e)
+                    LOG.error(str(e))
                     if e.secret:
                         self._report_status(e.secret, RequestJobStatus.ERROR)
-                    time.sleep(self._runner_interval)
+                    time.sleep(self._runner_interval.total_seconds())
                     continue
 
                 clone_dir = os.path.join(self._runner_repository_dir, job.secret)
@@ -66,7 +66,7 @@ class Runner(multiprocessing.Process):
                     git.clone(job.origin, job.branch, job.commit, clone_dir)
                 except CloneException:
                     self._report_status(job.secret, RequestJobStatus.ERROR)
-                    time.sleep(self._runner_interval)
+                    time.sleep(self._runner_interval.total_seconds())
                     continue
 
                 with Script(job, clone_dir, self._client, self._lxd_profiles) as script:
@@ -131,5 +131,5 @@ class Runner(multiprocessing.Process):
     def fetch_job_url(self) -> str:
         return '{}/jobs/queue/{}'.format(self.driver_endpoint, self._runner_token)
 
-    def job_status_url(self, secret: str, status: ScriptStatus) -> str:
+    def job_status_url(self, secret: str, status: RequestJobStatus) -> str:
         return '{}/jobs/report/{}?status={}'.format(self.driver_endpoint, secret, status.value)

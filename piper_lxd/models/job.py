@@ -71,7 +71,7 @@ class Job:
         'fi;',
     ])
 
-    def __init__(self, job: Dict[str, Any]):
+    def __init__(self, job: Dict[str, Any]) -> None:
         if 'secret' not in job:
             raise JobException('job["secret"] not found', secret=None)
         self._secret = job['secret']
@@ -147,7 +147,7 @@ class Job:
         return self._env
 
     @property
-    def lxd_source(self) -> str:
+    def lxd_source(self) -> Dict[str, str]:
         if self.image.startswith('fingerprint:'):
             return {
                 'type': 'image',

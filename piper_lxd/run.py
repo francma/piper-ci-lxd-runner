@@ -29,12 +29,12 @@ LOG = logging.getLogger(__name__)
 @click.option(
     '--lxd-cert',
     help='Client\'s certificate trusted by LXD server',
-    type=click.Path(exists=True),
+    type=click.Path(exists=True, resolve_path=True),
 )
 @click.option(
     '--lxd-key',
     help='Client\'s key trusted by LXD server',
-    type=click.Path(exists=True),
+    type=click.Path(exists=True, resolve_path=True),
 )
 @click.option(
     '--lxd-verify',
@@ -59,12 +59,12 @@ LOG = logging.getLogger(__name__)
 @click.option(
     '--runner-repository-dir',
     help='Base directory where remote repositories (GIT) are cloned',
-    type=click.Path(exists=True),
+    type=click.Path(exists=True, resolve_path=True),
 )
 @click.option(
     '--config',
     help='Configuration file',
-    type=click.Path(exists=True),
+    type=click.Path(exists=True, resolve_path=True),
 )
 def run(
     runner_token,

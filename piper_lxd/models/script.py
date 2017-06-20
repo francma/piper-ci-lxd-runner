@@ -10,6 +10,7 @@ import pylxd
 import pylxd.exceptions
 from ws4py.client import WebSocketBaseClient
 from ws4py.manager import WebSocketManager
+import ws4py.messaging
 
 from piper_lxd.models.job import Job
 
@@ -49,7 +50,7 @@ class Script:
             self.close()
 
     class WebSocket(WebSocketBaseClient):
-        def __init__(self, manager, handler, *args, **kwargs):
+        def __init__(self, manager: WebSocketManager, handler: BufferHandler, *args, **kwargs) -> None:
             self.manager = manager
             self.handler = handler
             super(Script.WebSocket, self).__init__(*args, **kwargs)
@@ -57,7 +58,7 @@ class Script:
         def handshake_ok(self) -> None:
             self.manager.add(self)
 
-        def received_message(self, message: str) -> None:
+        def received_message(self, message: ws4py.messaging.TextMessage) -> None:
             if len(message.data) == 0:
                 self.close()
                 self.manager.remove(self)
@@ -69,7 +70,7 @@ class Script:
 
             self.handler.on_message(decoded)
 
-    def __init__(self, job: Job, repository_path: str, lxd_client: pylxd.Client, lxd_profiles: List[str]):
+    def __init__(self, job: Job, repository_path: str, lxd_client: pylxd.Client, lxd_profiles: List[str]) -> None:
         self._job = job
         self._lxd_client = lxd_client
         self._status = ScriptStatus.CREATED
