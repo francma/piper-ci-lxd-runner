@@ -64,31 +64,31 @@ def parse_args(args: List[str]) -> Dict[str, Any]:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--runner-endpoint',
-        help='Driver server without protocol definition (example: server.com)',
+        help='piper-core server url (example: https://yourserver:4040)',
         metavar='URL'
     )
     parser.add_argument(
         '--lxd-profiles',
-        help='List of LXC profiles (see `lxc profile` shell command), separated by comma',
+        help='List of LXC profiles separated by comma (see `lxc profile` shell command)',
         type=comma_list,
         metavar='A,B,...',
     )
     parser.add_argument(
         '--lxd-endpoint',
-        help='LXD server endpoint',
+        help='LXD server url',
         default='https://127.0.0.1:8443',
         metavar='URL',
     )
     parser.add_argument(
         '--lxd-key',
-        help='Client\'s key trusted by LXD server',
+        help='Path to client\'s key trusted by LXD server',
         type=Path,
         required=True,
         metavar='PATH',
     )
     parser.add_argument(
         '--lxd-cert',
-        help='Client\'s certificate trusted by LXD server',
+        help='Path to client\'s certificate trusted by LXD server',
         type=Path,
         required=True,
         metavar='PATH',
