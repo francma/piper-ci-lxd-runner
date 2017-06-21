@@ -53,10 +53,10 @@ def parse_args(args: List[str]) -> Dict[str, Any]:
         return td
 
     def positive(n: str) -> int:
-        n = int(n)
-        if n <= 0:
+        nn = int(n)
+        if nn <= 0:
             raise ValueError
-        return n
+        return nn
 
     def comma_list(n: str) -> List[str]:
         return n.split(',')
@@ -127,9 +127,9 @@ def parse_args(args: List[str]) -> Dict[str, Any]:
         metavar='PATH',
     )
 
-    args = vars(parser.parse_args(args))
+    parsed_args = vars(parser.parse_args(args))
 
-    return args
+    return parsed_args
 
 
 def main() -> None:
