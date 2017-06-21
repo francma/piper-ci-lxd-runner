@@ -2,8 +2,9 @@ import logging
 import os
 import time
 import multiprocessing
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import timedelta
+from pathlib import Path
 
 import pylxd
 import pylxd.exceptions
@@ -15,30 +16,31 @@ from piper_lxd.models.job import Job, RequestJobStatus, ResponseJobStatus
 from piper_lxd.models.exceptions import *
 
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('piper-lxd')
 
 
 class Runner(multiprocessing.Process):
 
     def __init__(
             self,
-            runner_repository_dir: str,
+            runner_repository_dir: Path,
             runner_token: str,
-            driver_endpoint: str,
-            lxd_profiles=None,
-            runner_interval: timedelta=None,
-            lxd_key=None,
-            lxd_endpoint=None,
-            lxd_cert=None,
-            lxd_verify=False
+            runner_endpoint: str,
+            lxd_profiles: List[str],
+            runner_interval: timedelta,
+            lxd_key: Path,
+            lxd_endpoint: str,
+            lxd_cert: Path,
+            lxd_verify: bool,
+            **kwargs
     ) -> None:
-        cert = (os.path.expanduser(lxd_cert), os.path.expanduser(lxd_key)) if lxd_key and lxd_cert else None
+        cert = (str(lxd_cert.expanduser()), str(lxd_key.expanduser())) if lxd_key and lxd_cert else None
         self._client = pylxd.Client(cert=cert, endpoint=lxd_endpoint, verify=lxd_verify)
-        self._driver_endpoint = driver_endpoint
+        self._driver_endpoint = runner_endpoint
         self._runner_token = runner_token
-        self._lxd_profiles = lxd_profiles if type(lxd_profiles) is list else []
+        self._lxd_profiles = lxd_profiles
         self._runner_token = runner_token
-        self._runner_interval = runner_interval if runner_interval else timedelta(seconds=2)
+        self._runner_interval = runner_interval
         self._runner_repository_dir = runner_repository_dir
         super().__init__()
 
@@ -59,8 +61,8 @@ class Runner(multiprocessing.Process):
                     time.sleep(self._runner_interval.total_seconds())
                     continue
 
-                clone_dir = os.path.join(self._runner_repository_dir, job.secret)
-                os.makedirs(clone_dir)
+                clone_dir = self._runner_repository_dir / job.secret
+                clone_dir.mkdir(parents=True)
 
                 try:
                     git.clone(job.origin, job.branch, job.commit, clone_dir)

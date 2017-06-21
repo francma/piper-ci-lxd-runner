@@ -5,6 +5,7 @@ import uuid
 import logging
 from typing import List
 from datetime import timedelta
+from pathlib import Path
 
 import pylxd
 import pylxd.exceptions
@@ -70,7 +71,7 @@ class Script:
 
             self.handler.on_message(decoded)
 
-    def __init__(self, job: Job, repository_path: str, lxd_client: pylxd.Client, lxd_profiles: List[str]) -> None:
+    def __init__(self, job: Job, repository_path: Path, lxd_client: pylxd.Client, lxd_profiles: List[str]) -> None:
         self._job = job
         self._lxd_client = lxd_client
         self._status = ScriptStatus.CREATED
@@ -88,7 +89,7 @@ class Script:
                 'piper_repository': {
                     'type': 'disk',
                     'path': '/piper',
-                    'source': self._repository_path,
+                    'source': str(self._repository_path),
                 }
             }
         }

@@ -1,10 +1,8 @@
-[driver]
-endpoint = http://127.0.0.1:4444
-
 [runner]
 token = AAAA
-interval = 2
-workers = 8
+interval = 3
+instances = 1
+endpoint = http://127.0.0.1:4444
 
 [lxd]
 # profiles delimited by comma
@@ -12,6 +10,6 @@ profiles = lxd-ci
 endpoint = https://127.0.0.1:8443
 cert = ~/.config/lxc/client.crt
 key = ~/.config/lxc/client.key
-verify = false
+verify = no
 
 

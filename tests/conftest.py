@@ -5,6 +5,7 @@ import shutil
 import json
 from typing import List, Dict
 import logging
+from datetime import timedelta
 
 import pytest
 
@@ -12,7 +13,7 @@ from piper_lxd.models.runner import Runner
 from piper_lxd.models.job import ResponseJobStatus, RequestJobStatus
 
 logging.basicConfig()
-logging.getLogger('piper_lxd.models.runner').setLevel(logging.DEBUG)
+logging.getLogger('piper-lxd').setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -29,11 +30,13 @@ def runner(monkeypatch):
     runner = Runner(
         runner_repository_dir=os.path.join(tempdir, 'repository'),
         runner_token=token,
-        driver_endpoint='http://localhost',
+        runner_endpoint='http://localhost',
         lxd_profiles=['piper-ci'],
         lxd_cert='~/.config/lxc-client/client.crt',
         lxd_key='~/.config/lxc-client/client.key',
-        lxd_endpoint='https://127.0.0.1:8443'
+        lxd_endpoint='https://127.0.0.1:8443',
+        lxd_verify=False,
+        runner_interval=timedelta(seconds=2),
     )
 
     def get_fetch_function(jobs: List):
