@@ -9,6 +9,7 @@ from pathlib import Path
 import pylxd
 import pylxd.exceptions
 import requests
+from pykwalify.errors import SchemaError
 
 from piper_lxd.models.script import Script, ScriptStatus
 from piper_lxd.models import git
@@ -54,10 +55,10 @@ class Runner(multiprocessing.Process):
             try:
                 try:
                     job = Job(data)
-                except JobException as e:
+                except SchemaError as e:
                     LOG.error(str(e))
-                    if e.secret:
-                        self._report_status(e.secret, RequestJobStatus.ERROR)
+                    if 'secret' in job:
+                        self._report_status(job['secret'], RequestJobStatus.ERROR)
                     time.sleep(self._runner_interval.total_seconds())
                     continue
 

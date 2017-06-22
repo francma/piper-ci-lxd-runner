@@ -12,6 +12,7 @@ from pykwalify.core import Core as Validator
 from pykwalify.errors import SchemaError
 
 from piper_lxd.models.runner import Runner
+import piper_lxd.schemas as schemas
 
 LOG = logging.getLogger('piper-lxd')
 
@@ -51,7 +52,7 @@ def main() -> None:
     parsed = vars(parser.parse_args())
     config = yaml.load(parsed['config'].open())
 
-    validator = Validator(schema_files=['config.schema.yml'], source_data=config)
+    validator = Validator(schema_data=schemas.config, source_data=config)
     try:
         validator.validate()
     except SchemaError as e:
