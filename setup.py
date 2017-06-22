@@ -37,6 +37,8 @@ setup(
         'ws4py',
         'requests',
         'pylxd',
+        'pyyaml',
+        'pykwalify',
     ],
     tests_require=[
         'pytest',

@@ -1,0 +1,29 @@
+lxd:
+  profiles: [piper-ci]
+  endpoint: https://127.0.0.1:8443
+  cert: ~/.config/lxc/client.crt
+  key: ~/.config/lxc/client.key
+  verify: no
+
+runner:
+  token: AAAA
+  interval: 1
+  instances: 1
+  endpoint: http://127.0.0.1:4444
+
+logging:
+  version: 1
+  disable_existing_loggers: yes
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: default
+      stream: ext://sys.stderr
+  formatters:
+    default:
+      format: "%(asctime)s - %(levelname)s - %(message)s"
+      datefmt: '%Y-%m-%d %H:%M:%S'
+  loggers:
+    piper-lxd:
+      level: DEBUG
+      handlers: [console]
