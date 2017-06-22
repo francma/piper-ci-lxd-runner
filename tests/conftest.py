@@ -6,6 +6,7 @@ import json
 from typing import List, Dict
 import logging
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
@@ -28,12 +29,12 @@ def runner(monkeypatch):
     tempdir = os.path.join(tempfile.gettempdir(), token)
 
     runner = Runner(
-        runner_repository_dir=os.path.join(tempdir, 'repository'),
+        runner_repository_dir=Path(os.path.join(tempdir, 'repository')),
         runner_token=token,
         runner_endpoint='http://localhost',
         lxd_profiles=['piper-ci'],
-        lxd_cert='~/.config/lxc-client/client.crt',
-        lxd_key='~/.config/lxc-client/client.key',
+        lxd_cert=Path('~/.config/lxc-client/client.crt'),
+        lxd_key=Path('~/.config/lxc-client/client.key'),
         lxd_endpoint='https://127.0.0.1:8443',
         lxd_verify=False,
         runner_interval=timedelta(seconds=2),

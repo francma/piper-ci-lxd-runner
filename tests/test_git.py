@@ -1,6 +1,7 @@
 import tempfile
 import os
 import subprocess
+from pathlib import Path
 
 from piper_lxd.models import git
 
@@ -11,7 +12,7 @@ def test_basic_clone():
     commit = 'e7a4739755a81a06242bc3249e36b133b3783f9b'
 
     with tempfile.TemporaryDirectory() as td:
-        git.clone(origin, branch, commit, td)
+        git.clone(origin, branch, commit, Path(td))
         command = ['git', 'log', '-1', '--format=%H']
         process = subprocess.Popen(command, cwd=td, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = process.communicate()
@@ -32,11 +33,11 @@ def test_clone_with_keys():
     origin = 'git@github.com:francma/piper-ci-test-repo.git'
     branch = 'master'
     commit = '09d13744b731539507bf7071f2e444aeba01cbc5'
-    repo_key = os.path.abspath('tests/keys/privkey_repo')
-    sub_key = os.path.abspath('tests/keys/privkey_submodule')
+    repo_key = Path('tests/keys/privkey_repo').resolve()
+    sub_key = Path('tests/keys/privkey_submodule').resolve()
 
     with tempfile.TemporaryDirectory() as td:
-        git.clone(origin, branch, commit, td, [repo_key, sub_key])
+        git.clone(origin, branch, commit, Path(td), [repo_key, sub_key])
         command = ['git', 'log', '-1', '--format=%H']
         process = subprocess.Popen(command, cwd=td, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = process.communicate()
