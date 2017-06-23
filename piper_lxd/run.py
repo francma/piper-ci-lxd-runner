@@ -24,7 +24,8 @@ def main() -> None:
     )
 
     parsed = vars(parser.parse_args())
-    config = Config(yaml.load(parsed['config'].open()))
+    path = parsed['config'].expanduser()
+    config = Config(yaml.load(path.open()))
     connection = Connection(config.runner.endpoint)
     logging.config.dictConfig(config.logging.config)
 
@@ -44,8 +45,7 @@ def main() -> None:
             time.sleep(config.runner.interval.total_seconds())
             continue
 
-        r = Executor(connection, config.runner.interval, config.lxd, job, name=job.secret)
-        r.start()
+        Executor(connection, config.runner.interval, config.lxd, job, name=job.secret).start()
 
 
 if __name__ == '__main__':
