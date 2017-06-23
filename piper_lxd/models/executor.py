@@ -1,7 +1,6 @@
 import logging
 import multiprocessing
 from datetime import timedelta
-from pathlib import Path
 from functools import wraps
 import tempfile
 
@@ -33,6 +32,8 @@ def _catch(func):
             LOG.error(str(e))
         except CloneException:
             self._report_status(self._job.secret, RequestJobStatus.ERROR)
+        except StopException:
+            LOG.debug('Received status != ResponseJobStatus.OK from PiperCore, stopping container')
 
     return wrapped
 
@@ -50,29 +51,26 @@ class Executor(multiprocessing.Process):
 
     @_catch
     def run(self) -> None:
+        self._report_status(RequestJobStatus.RUNNING)
+
         with tempfile.TemporaryDirectory() as td:
             git.clone(self._job.origin, self._job.branch, self._job.commit, td)
 
             with Script(self._job, td, self._client, self._lxd_config.profiles) as script:
-                status = None
                 while script.status is ScriptStatus.RUNNING:
                     script.poll(self._interval)
                     output = script.pop_output()
-                    status = self._report_status(RequestJobStatus.RUNNING, output)
-                    if status is not ResponseJobStatus.OK:
-                        LOG.info('Job(secret = {}) received status = {}, stopping'.format(self._job.secret, status))
-                        break
-                script_status = script.status
-                output = script.pop_output()
+                    self._report_status(RequestJobStatus.RUNNING, output)
 
-        if status is ResponseJobStatus.OK:
-            if script_status is ScriptStatus.ERROR:
-                self._report_status(RequestJobStatus.ERROR)
-            elif script_status is ScriptStatus.COMPLETED:
-                self._report_status(RequestJobStatus.COMPLETED, output)
+                if script.status is ScriptStatus.COMPLETED:
+                    self._report_status(RequestJobStatus.COMPLETED)
+                else:
+                    self._report_status(RequestJobStatus.ERROR)
 
     def _report_status(self, status: RequestJobStatus, data=None) -> ResponseJobStatus:
         response = self._connection.report(self._job.secret, status, data)
+        if response is not ResponseJobStatus.OK:
+            raise StopException
 
         return response
 

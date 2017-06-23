@@ -3,6 +3,7 @@ import logging
 import os
 import uuid
 from collections import defaultdict
+from typing import Optional
 
 import pytest
 
@@ -36,9 +37,9 @@ class FakeConnection:
         with open('tests/jobs/{}.json'.format(job)) as fd:
             self.jobs.append(Job(json.load(fd)))
 
-    def report(self, secret: str, status: RequestJobStatus, log: str = None) -> ResponseJobStatus:
+    def report(self, secret: str, status: RequestJobStatus, log: Optional[str] = None) -> ResponseJobStatus:
         self.statuses[secret].append(status)
-        self.logs[secret] += log
+        self.logs[secret] += '' if log is None else log
 
         return ResponseJobStatus.OK
 
