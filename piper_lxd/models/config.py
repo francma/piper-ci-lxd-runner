@@ -3,7 +3,6 @@ from typing import List, Dict, Any
 from datetime import timedelta
 import collections
 
-import yaml
 from pykwalify.core import Core as Validator
 
 import piper_lxd.schemas as schemas

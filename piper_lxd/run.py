@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import requests
-from piper_lxd.models.runner import Executor
+from piper_lxd.models.executor import Executor
 
 from piper_lxd.models.config import Config
 from piper_lxd.models.connection import Connection
