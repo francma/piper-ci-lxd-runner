@@ -128,7 +128,7 @@ class Script:
         stderr = self.WebSocket(self.manager, self._handler, self._lxd_client.websocket_url)
         stderr.resource = stderr_url
         stderr.connect()
-        self._status = ScriptStatus.RUNNING
+        self._status = self._get_status()
 
         return self
 
@@ -146,13 +146,12 @@ class Script:
             while len(self.manager.websockets.values()) > 0:
                 sleep(self.POLL_TIMEOUT.total_seconds())
 
-            self._status = ScriptStatus.COMPLETED
+            self._status = self._get_status()
             return
 
         while timeout > timedelta(0):
             if len(self.manager.websockets.values()) == 0:
-                self._status = ScriptStatus.COMPLETED
-                return
+                break
 
             if timeout > self.POLL_TIMEOUT:
                 sleep(self.POLL_TIMEOUT.total_seconds())
@@ -162,10 +161,19 @@ class Script:
             timeout -= self.POLL_TIMEOUT
 
         if len(self.manager.websockets.values()) == 0:
-            self._status = ScriptStatus.COMPLETED
+            self._status = self._get_status()
             return
 
-        self._status = ScriptStatus.RUNNING
+        self._status = self._get_status()
+
+    def _get_status(self):
+        result = self._lxd_client.operations.get(self.operation_id)
+        if result.status_code == 200:
+            return ScriptStatus.COMPLETED
+        if result.status_code == 103:
+            return ScriptStatus.RUNNING
+
+        return ScriptStatus.ERROR
 
     @property
     def status(self) -> ScriptStatus:
