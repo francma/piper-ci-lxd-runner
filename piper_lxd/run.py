@@ -1,44 +1,17 @@
 #!/usr/bin/env python3
-import logging
-import logging.config
 import argparse
-import sys
-from datetime import timedelta
+import json
+import logging.config
+import time
 from pathlib import Path
-import collections
 
-import yaml
-from pykwalify.core import Core as Validator
-from pykwalify.errors import SchemaError
+import requests
+from piper_lxd.models.runner import Executor
 
-from piper_lxd.models.runner import Runner
-import piper_lxd.schemas as schemas
+from piper_lxd.models.config import Config
+from piper_lxd.models.connection import Connection
 
 LOG = logging.getLogger('piper-lxd')
-
-
-def merge_dicts(d, u):
-    for k, v in u.items():
-        if isinstance(v, collections.Mapping):
-            r = merge_dicts(d.get(k, {}), v)
-            d[k] = r
-        else:
-            d[k] = u[k]
-    return d
-
-defaults = {
-    'lxd': {
-        'verify': False,
-    },
-    'runner': {
-        'interval': 3,
-        'instances': 1,
-        'repository_dir': '/tmp',
-    },
-    'logging': {
-        'version': 1,
-    },
-}
 
 
 def main() -> None:
@@ -50,38 +23,23 @@ def main() -> None:
     )
 
     parsed = vars(parser.parse_args())
-    config = yaml.load(parsed['config'].open())
+    config = Config(json.loads(parsed['config'].open()))
+    connection = Connection(config.runner.endpoint)
 
-    validator = Validator(schema_data=schemas.config, source_data=config)
-    try:
-        validator.validate()
-    except SchemaError as e:
-        print(e, file=sys.stderr)
-        exit(2)
+    while True:
+        try:
+            job = connection.fetch_job(config.runner.token)
+        except requests.exceptions.ConnectionError as e:
+            LOG.warning('Job fetch from failed: {}'.format(e))
+            time.sleep(config.runner.interval.total_seconds())
+            continue
+        if job is None:
+            LOG.debug('No job available')
+            time.sleep(config.runner.interval.total_seconds())
+            continue
 
-    config = merge_dicts(config, defaults)
-    logging.config.dictConfig(config['logging'])
-    config['lxd']['cert'] = Path(config['lxd']['cert'])
-    config['lxd']['key'] = Path(config['lxd']['key'])
-    config['runner']['interval'] = timedelta(seconds=config['runner']['interval'])
-
-    a = {'runner_' + a: b for a, b in config['runner'].items()}
-    b = {'lxd_' + a: b for a, b in config['lxd'].items()}
-    runner_config = {**a, **b}
-
-    runners = list()
-    try:
-        for i in range(config['runner']['instances']):
-            r = Runner(**runner_config)
-            runners.append(r)
-            r.start()
-
-        for r in runners:
-            r.join()
-    except KeyboardInterrupt:
-        for r in runners:
-            LOG.info('Terminating worker(PID={})'.format(r.pid))
-            r.terminate()
+        r = Executor(connection, config.runner.interval, config.lxd, job)
+        r.start()
 
 
 if __name__ == '__main__':

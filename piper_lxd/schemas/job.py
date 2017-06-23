@@ -32,7 +32,7 @@ schema = {
       "matching-rule": "all",
       "mapping": {
         "regex;(.*)": {
-          "type": "str"
+          "type": "any"
         }
       }
     },

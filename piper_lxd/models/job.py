@@ -80,12 +80,14 @@ class Job:
         self._secret = job['secret']
         self._after_failure = job['after_failure'] if 'after_failure' in job else []
         self._commands = job['commands']
-        self._env = job['env'] if ('env' in job and job['env']) else {}
+        self._env = job['env'] if 'env' in job else {}
         self._image = job['image']
         self._origin = job['repository']['origin']
         self._branch = job['repository']['branch']
         self._commit = job['repository']['commit']
         self._cwd = '/piper'
+
+        self._env = {k: str(v) for k, v in self._env.items()}
 
     @property
     def commands(self) -> List[str]:

@@ -9,7 +9,7 @@ runner:
   token: AAAA
   interval: 1
   instances: 1
-  endpoint: http://127.0.0.1:4444
+  endpoint: http://127.0.0.1:5001
 
 logging:
   version: 1
