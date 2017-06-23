@@ -40,14 +40,14 @@ def _catch(func):
 
 class Executor(multiprocessing.Process):
 
-    def __init__(self, connection: Connection, interval: timedelta, lxd_config: LxdConfig, job: Job) -> None:
+    def __init__(self, connection: Connection, interval: timedelta, lxd_config: LxdConfig, job: Job, **kwargs) -> None:
         cert = (str(lxd_config.cert.expanduser()), str(lxd_config.key.expanduser()))
         self._client = pylxd.Client(cert=cert, endpoint=lxd_config.endpoint, verify=lxd_config.verify)
         self._lxd_config = lxd_config
         self._job = job
         self._interval = interval
         self._connection = connection
-        super().__init__()
+        super().__init__(**kwargs)
 
     @_catch
     def run(self) -> None:

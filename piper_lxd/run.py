@@ -44,7 +44,7 @@ def main() -> None:
             time.sleep(config.runner.interval.total_seconds())
             continue
 
-        r = Executor(connection, config.runner.interval, config.lxd, job)
+        r = Executor(connection, config.runner.interval, config.lxd, job, name=job.secret)
         r.start()
 
 
