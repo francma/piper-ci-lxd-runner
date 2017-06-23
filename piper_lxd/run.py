@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 import requests
+import yaml
 from piper_lxd.models.executor import Executor
 
 from piper_lxd.models.config import Config
@@ -23,8 +24,9 @@ def main() -> None:
     )
 
     parsed = vars(parser.parse_args())
-    config = Config(json.loads(parsed['config'].open()))
+    config = Config(yaml.load(parsed['config'].open()))
     connection = Connection(config.runner.endpoint)
+    logging.config.dictConfig(config.logging.config)
 
     while True:
         try:
