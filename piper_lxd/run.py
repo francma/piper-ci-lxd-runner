@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import argparse
-import json
 import logging.config
 import time
 from pathlib import Path
+import multiprocessing
 
 import requests
 import yaml
@@ -29,6 +29,10 @@ def main() -> None:
     logging.config.dictConfig(config.logging.config)
 
     while True:
+        if multiprocessing.active_children() == config.runner.instances:
+            time.sleep(config.runner.interval.total_seconds())
+            continue
+
         try:
             job = connection.fetch_job(config.runner.token)
         except requests.exceptions.ConnectionError as e:
