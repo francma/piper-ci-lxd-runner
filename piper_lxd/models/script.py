@@ -1,9 +1,8 @@
 from time import sleep
-from enum import Enum
 from io import StringIO
 import uuid
 import logging
-from typing import List
+from typing import List, Optional
 from datetime import timedelta
 from pathlib import Path
 
@@ -32,13 +31,6 @@ class BufferHandler:
         self._mem.truncate(0)
         self._mem.seek(0)
         return data
-
-
-class ScriptStatus(Enum):
-    CREATED = 'CREATED'
-    RUNNING = 'RUNNING'
-    COMPLETED = 'COMPLETED'
-    ERROR = 'ERROR'
 
 
 class Script:
@@ -74,7 +66,6 @@ class Script:
     def __init__(self, job: Job, repository_path: Path, lxd_client: pylxd.Client, lxd_profiles: List[str]) -> None:
         self._job = job
         self._lxd_client = lxd_client
-        self._status = ScriptStatus.CREATED
         self._repository_path = repository_path
         self._lxd_profiles = lxd_profiles
 
@@ -128,7 +119,6 @@ class Script:
         stderr = self.WebSocket(self.manager, self._handler, self._lxd_client.websocket_url)
         stderr.resource = stderr_url
         stderr.connect()
-        self._status = self._get_status()
 
         return self
 
@@ -141,13 +131,12 @@ class Script:
 
             self._container.delete()
 
-    def poll(self, timeout: timedelta=None) -> None:
+    def poll(self, timeout: timedelta=None) -> str:
         if timeout is None:
             while len(self.manager.websockets.values()) > 0:
                 sleep(self.POLL_TIMEOUT.total_seconds())
 
-            self._status = self._get_status()
-            return
+            return self._handler.pop()
 
         while timeout > timedelta(0):
             if len(self.manager.websockets.values()) == 0:
@@ -160,24 +149,13 @@ class Script:
 
             timeout -= self.POLL_TIMEOUT
 
-        if len(self.manager.websockets.values()) == 0:
-            self._status = self._get_status()
-            return
-
-        self._status = self._get_status()
-
-    def _get_status(self):
-        result = self._lxd_client.operations.get(self.operation_id)
-        if result.status_code == 200:
-            return ScriptStatus.COMPLETED
-        if result.status_code == 103:
-            return ScriptStatus.RUNNING
-
-        return ScriptStatus.ERROR
+        return self._handler.pop()
 
     @property
-    def status(self) -> ScriptStatus:
-        return self._status
+    def status(self) -> Optional[int]:
+        if not self.operation_id:
+            return None
 
-    def pop_output(self) -> str:
-        return self._handler.pop()
+        result = self._lxd_client.operations.get(self.operation_id)
+
+        return result.status_code

@@ -8,7 +8,7 @@ import pylxd
 import pylxd.exceptions
 import requests
 
-from piper_lxd.models.script import Script, ScriptStatus
+from piper_lxd.models.script import Script
 from piper_lxd.models.connection import Connection
 from piper_lxd.models.config import LxdConfig
 from piper_lxd.models import git
@@ -57,13 +57,13 @@ class Executor(multiprocessing.Process):
             git.clone(self._job.origin, self._job.branch, self._job.commit, td)
 
             with Script(self._job, td, self._client, self._lxd_config.profiles) as script:
-                while script.status is ScriptStatus.RUNNING:
-                    script.poll(self._interval)
-                    output = script.pop_output()
+                while script.status == 103:  # running
+                    output = script.poll(self._interval)
                     self._report_status(RequestJobStatus.RUNNING, output)
+                output = script.poll(self._interval)
 
-                if script.status is ScriptStatus.COMPLETED:
-                    self._report_status(RequestJobStatus.COMPLETED)
+                if script.status == 200:  # success
+                    self._report_status(RequestJobStatus.COMPLETED, output)
                 else:
                     self._report_status(RequestJobStatus.ERROR)
 
@@ -73,4 +73,3 @@ class Executor(multiprocessing.Process):
             raise StopException
 
         return response
-
