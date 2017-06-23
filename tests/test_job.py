@@ -31,11 +31,6 @@ def test_image_not_str():
         Job(load_dict('image_not_str'))
 
 
-def test_image_not_str():
-    with pytest.raises(SchemaError):
-        Job(load_dict('image_not_str'))
-
-
 def test_after_failure_not_list():
     with pytest.raises(SchemaError):
         Job(load_dict('after_failure_not_list'))

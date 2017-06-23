@@ -3,6 +3,7 @@ import multiprocessing
 from datetime import timedelta
 from functools import wraps
 import tempfile
+from pathlib import Path
 
 import pylxd
 import pylxd.exceptions
@@ -13,7 +14,7 @@ from piper_lxd.models.connection import Connection
 from piper_lxd.models.config import LxdConfig
 from piper_lxd.models import git
 from piper_lxd.models.job import Job, RequestJobStatus, ResponseJobStatus
-from piper_lxd.models.exceptions import *
+from piper_lxd.models.exceptions import StopException, CloneException
 
 
 LOG = logging.getLogger('piper-lxd')
@@ -54,9 +55,10 @@ class Executor(multiprocessing.Process):
         self._report_status(RequestJobStatus.RUNNING)
 
         with tempfile.TemporaryDirectory() as td:
-            git.clone(self._job.origin, self._job.branch, self._job.commit, td)
+            path = Path(td)
+            git.clone(self._job.origin, self._job.branch, self._job.commit, path)
 
-            with Script(self._job, td, self._client, self._lxd_config.profiles) as script:
+            with Script(self._job, path, self._client, self._lxd_config.profiles) as script:
                 while script.status == 103:  # running
                     output = script.poll(self._interval)
                     self._report_status(RequestJobStatus.RUNNING, output)

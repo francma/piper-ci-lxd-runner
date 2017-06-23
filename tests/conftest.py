@@ -74,4 +74,3 @@ def config():
 @pytest.fixture()
 def empty_clone(monkeypatch):
     monkeypatch.setattr('piper_lxd.models.git.clone', lambda a, b, c, d, e=None: None)
-

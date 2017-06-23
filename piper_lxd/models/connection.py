@@ -10,7 +10,7 @@ LOG = logging.getLogger('piper-lxd')
 
 class Connection:
 
-    def __init__(self, core_base_url: str):
+    def __init__(self, core_base_url: str) -> None:
         self._core_base_url = core_base_url
 
     def fetch_job(self, token: str) -> Optional[Job]:
@@ -28,10 +28,10 @@ class Connection:
 
         return job
 
-    def report(self, secret: str, status: RequestJobStatus, log: str=None) -> ResponseJobStatus:
+    def report(self, secret: str, status: RequestJobStatus, log: Optional[str]=None) -> ResponseJobStatus:
         url = self.report_url(secret, status)
         LOG.debug('Reporting status {} to {}'.format(status, url))
-        response = requests.post(url, headers={'content-type': 'text/plain'}, data=log)
+        response = requests.post(url, headers={'content-type': 'text/plain'}, data=log)  # type: ignore
         js = response.json()
 
         return ResponseJobStatus[js['status']]

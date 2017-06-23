@@ -1,0 +1,6 @@
+pytest
+pytest-timeout
+pytest-cov
+mypy
+flake8
+coveralls

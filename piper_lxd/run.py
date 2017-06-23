@@ -30,7 +30,7 @@ def main() -> None:
     logging.config.dictConfig(config.logging.config)
 
     while True:
-        if multiprocessing.active_children() == config.runner.instances:
+        if multiprocessing.active_children() == config.runner.instances:  # type: ignore
             time.sleep(config.runner.interval.total_seconds())
             continue
 

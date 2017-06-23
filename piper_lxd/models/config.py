@@ -10,7 +10,7 @@ import piper_lxd.schemas as schemas
 
 class LxdConfig:
 
-    def __init__(self, verify: bool, profiles: List[str], endpoint: str, cert: Path, key: Path):
+    def __init__(self, verify: bool, profiles: List[str], endpoint: str, cert: Path, key: Path) -> None:
         self.verify = verify
         self.profiles = profiles
         self.endpoint = endpoint
@@ -20,7 +20,7 @@ class LxdConfig:
 
 class RunnerConfig:
 
-    def __init__(self, token: str, interval: timedelta, instances: int, endpoint: str):
+    def __init__(self, token: str, interval: timedelta, instances: int, endpoint: str) -> None:
         self.token = token
         self.interval = interval
         self.instances = instances
@@ -29,7 +29,7 @@ class RunnerConfig:
 
 class LoggingConfig:
 
-    def __init__(self, config: Dict[Any, Any]):
+    def __init__(self, config: Dict[Any, Any]) -> None:
         self.config = config
 
 
@@ -50,7 +50,7 @@ class Config:
         },
     }
 
-    def __init__(self, d: Dict[Any, Any]):
+    def __init__(self, d: Dict[Any, Any]) -> None:
         validator = Validator(schema_data=schemas.config, source_data=d)
         validator.validate()
         config = self._merge_dicts(self._DEFAULTS, d)
