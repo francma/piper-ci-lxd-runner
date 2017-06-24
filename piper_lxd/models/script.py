@@ -20,11 +20,8 @@ class BufferHandler:
     def __init__(self):
         self._mem = StringIO()
 
-    def on_message(self, data: str) -> None:
+    def handle_message(self, data: str) -> None:
         self._mem.write(data)
-
-    def on_close(self) -> None:
-        self._mem.close()
 
     def pop(self) -> str:
         data = self._mem.getvalue()
@@ -61,7 +58,7 @@ class Script:
             else:
                 decoded = message.data.decode('utf-8')
 
-            self.handler.on_message(decoded)
+            self.handler.handle_message(decoded)
 
     def __init__(self, job: Job, repository_path: Path, lxd_client: pylxd.Client, lxd_profiles: List[str]) -> None:
         self._job = job
