@@ -12,13 +12,27 @@ def clone(origin: str, branch: str, commit: str, destination: Path, ssh_keys_pat
         env['GIT_SSH_COMMAND'] = 'ssh -i ' + ' -i '.join(paths) + ' -F /dev/null'
 
     command = ['git', 'clone', '--recursive', '--branch', branch, origin, '.']
-    process = subprocess.Popen(command, cwd=str(destination), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    process = subprocess.Popen(
+        command,
+        cwd=str(destination),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+        env=env
+    )
     out, err = process.communicate()
     if process.returncode != 0:
         raise CloneException(err)
 
     command = ['git', 'checkout', '-f', commit]
-    process = subprocess.Popen(command, cwd=str(destination), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    process = subprocess.Popen(
+        command,
+        cwd=str(destination),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+        env=env
+    )
     out, err = process.communicate()
     if process.returncode != 0:
         raise CloneException(err)
