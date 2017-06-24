@@ -128,13 +128,7 @@ class Script:
 
             self._container.delete()
 
-    def poll(self, timeout: timedelta=None) -> str:
-        if timeout is None:
-            while len(self.manager.websockets.values()) > 0:
-                sleep(self.POLL_TIMEOUT.total_seconds())
-
-            return self._handler.pop()
-
+    def poll(self, timeout: timedelta) -> str:
         while timeout > timedelta(0):
             if len(self.manager.websockets.values()) == 0:
                 break
