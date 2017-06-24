@@ -16,7 +16,7 @@ LOG = logging.getLogger('piper-lxd')
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         'config',
         help='Configuration file',
