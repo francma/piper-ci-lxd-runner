@@ -17,8 +17,4 @@ Installation from GIT:
 
 ## Configuration
 
-Via command line: `piper-lxc --help`
-
-Via config file: `/config.ini.example`
-
-Command line arguments have higher priority.
+see `/config.example.yml` and `/piper_lxd/schemas/config.py`
