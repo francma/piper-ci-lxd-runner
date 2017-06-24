@@ -1,17 +1,48 @@
-from typing import Dict, List
+from typing import Dict, Any, List
+from enum import Enum
+
+from pykwalify.core import Core as Validator
+
+import piper_lxd.schemas as schemas
+
+
+class ResponseJobStatus(Enum):
+    OK = 'OK'
+    CANCEL = 'CANCEL'
+    ERROR = 'ERROR'
+
+
+class RequestJobStatus(Enum):
+    RUNNING = 'RUNNING'
+    COMPLETED = 'COMPLETED'
+    ERROR = 'ERROR'
 
 
 class Job:
 
+    COMMAND_PREFIX = 'piper'
+
     COMMAND_CWD = 'cd "{}"'
 
-    COMMAND_WAIT_FOR_NETWORK = 'sleep 5'  # FIXME
+    COMMAND_WAIT_FOR_NETWORK = '\n'.join([
+        'i=1; d=0',
+        'while [ $i -le 50 ]; do',
+        'i=$(($i + 1))',
+        'if [ -z "$(ip route get 8.8.8.8 2>/dev/null | grep -v unreachable)" ]; then',
+        'sleep 0.1; continue',
+        'fi',
+        'd=1; break;',
+        'done',
+        'if [ $d -eq 0 ]; then',
+        'exit 1',
+        'fi',
+    ])
 
     COMMAND_FIRST = 'PIPER_GLOB_EXIT=0'
 
     COMMAND_START = '\n'.join([
         'if [ $PIPER_GLOB_EXIT = 0 ]; then',
-        'printf "::piper_lxd-ci:command:{}:start:%d::\\n" `date +%s`;',
+        'printf "::' + COMMAND_PREFIX + ':command:{}:start:%d::\\n" `date +%s`;',
         'fi;',
         'if [ $PIPER_GLOB_EXIT = 0 ]; then',
     ])
@@ -21,7 +52,7 @@ class Job:
         'fi;',
         'if [ $PIPER_GLOB_EXIT = 0 ]; then',
         'PIPER_GLOB_EXIT=$PIPER_PREV_EXIT;',
-        'printf "::piper_lxd-ci:command:{}:end:%d:%d::\\n" `date +%s` $PIPER_PREV_EXIT;',
+        'printf "::' + COMMAND_PREFIX + ':command:{}:end:%d:%d::\\n" `date +%s` $PIPER_PREV_EXIT;',
         'fi;',
     ])
 
@@ -29,7 +60,7 @@ class Job:
 
     AFTER_FAILURE_START = '\n'.join([
         'if [ $PIPER_GLOB_EXIT != 0 ]; then',
-        'printf "::piper_lxd-ci:after_failure:{}:start:%d::\\n" `date +%s`;',
+        'printf "::' + COMMAND_PREFIX + ':after_failure:{}:start:%d::\\n" `date +%s`;',
         'fi;',
         'if [ $PIPER_GLOB_EXIT != 0 ]; then',
     ])
@@ -38,46 +69,56 @@ class Job:
         'PIPER_PREV_EXIT=$?;',
         'fi;',
         'if [ $PIPER_GLOB_EXIT != 0 ]; then',
-        'printf "::piper_lxd-ci:after_failure:{}:end:%d:%d::\\n" `date +%s` $PIPER_PREV_EXIT;',
+        'printf "::' + COMMAND_PREFIX + ':after_failure:{}:end:%d:%d::\\n" `date +%s` $PIPER_PREV_EXIT;',
         'fi;',
     ])
 
-    def __init__(
-        self,
-        commands: List[str],
-        secret: str,
-        image: str,
-        after_failure: List[str],
-        env: Dict[str, str],
-        cwd: str,
-        wait_for_network: bool,
-    ):
-        self._commands = commands
-        self._secret = secret
-        self._image = image
-        self._env = env
-        self._after_failure = after_failure
-        self._cwd = cwd
-        self._wait_for_network = wait_for_network
+    def __init__(self, job: Dict[str, Any]) -> None:
+        validator = Validator(source_data=job, schema_data=schemas.job)
+        validator.validate()
+
+        self._secret = job['secret']
+        self._after_failure = job['after_failure'] if 'after_failure' in job else []
+        self._commands = job['commands']
+        self._env = job['env'] if 'env' in job else {}
+        self._image = job['image']
+        self._origin = job['repository']['origin']
+        self._branch = job['repository']['branch']
+        self._commit = job['repository']['commit']
+        self._cwd = '/piper'
+
+        self._env = {k: str(v) for k, v in self._env.items()}
 
     @property
-    def commands(self):
+    def commands(self) -> List[str]:
         return self._commands
 
     @property
-    def secret(self):
+    def origin(self) -> str:
+        return self._origin
+
+    @property
+    def branch(self) -> str:
+        return self._branch
+
+    @property
+    def commit(self) -> str:
+        return self._commit
+
+    @property
+    def secret(self) -> str:
         return self._secret
 
     @property
-    def image(self):
+    def image(self) -> str:
         return self._image
 
     @property
-    def env(self):
+    def env(self) -> Dict[str, Any]:
         return self._env
 
     @property
-    def lxd_source(self):
+    def lxd_source(self) -> Dict[str, str]:
         if self.image.startswith('fingerprint:'):
             return {
                 'type': 'image',
@@ -90,11 +131,10 @@ class Job:
         }
 
     @property
-    def script(self):
+    def script(self) -> str:
         script = list()
         script.append(self.COMMAND_CWD.format(self._cwd))
-        if self._wait_for_network:
-            script.append(self.COMMAND_WAIT_FOR_NETWORK)
+        script.append(self.COMMAND_WAIT_FOR_NETWORK)
 
         script.append(self.COMMAND_FIRST)
 

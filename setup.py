@@ -27,7 +27,7 @@ setup(
     zip_safe=False,
     entry_points={
         'console_scripts': [
-          'piper_lxd = piper_lxd.run:run'
+          'piper-lxd = piper_lxd.run:main'
         ]
     },
     setup_requires=[
@@ -35,16 +35,14 @@ setup(
     ],
     install_requires=[
         'ws4py',
-        'click',
-        'flask',
-        'uwsgi',
-        'flask_uwsgi_websocket',
-        'gevent',
         'requests',
         'pylxd',
+        'pyyaml',
+        'pykwalify',
     ],
     tests_require=[
         'pytest',
-        'portalocker',
+        'pytest-timeout',
+        'pytest-cov',
     ],
 )

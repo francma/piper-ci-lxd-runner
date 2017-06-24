@@ -8,7 +8,6 @@ python:
   - "3.5-dev"
   - "3.6"
   - "3.6-dev"
-  - "3.7-dev"
 
 install:
   # install LXD
@@ -33,12 +32,15 @@ install:
   - sudo lxc config trust add client.crt
   - mkdir ~/.config/lxc-client
   - mv client.* ~/.config/lxc-client/.
-  # install project requirements
-  - pip install -e .
-  - pip install -r tests/requirements.txt
+  # python deps
+  - pip install -r requirements.txt
+  # remove after pylxd version on pipy > 2.2.3
+  - pip install git+https://github.com/lxc/pylxd.git
 
 script:
   - python setup.py test
+  - if [[ $TRAVIS_PYTHON_VERSION == '3.6' ]]; then flake8; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == '3.6' ]]; then mypy piper_lxd/run.py; fi
 
-after_failure:
-  - tail -n +1 /tmp/PIPER-*/*.err
+after_success:
+  - coveralls

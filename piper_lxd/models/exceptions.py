@@ -2,17 +2,9 @@ class PiperException(Exception):
     pass
 
 
-class LxdException(PiperException):
+class CloneException(PiperException):
     pass
 
 
-class LxdContainerCreateException(LxdException):
-    pass
-
-
-class GitException(PiperException):
-    pass
-
-
-class GitCloneException(GitException):
+class StopException(PiperException):
     pass
