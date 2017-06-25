@@ -3,10 +3,10 @@ import io
 import urllib3
 
 import pytest
-import requests
 
 from piper_lxd.models.executor import Executor
 from piper_lxd.models.job import Job, RequestJobStatus, ResponseJobStatus
+from piper_lxd.models.errors import PConnectionException
 
 urllib3.disable_warnings()
 
@@ -118,7 +118,7 @@ def test_cancel(connection, config, empty_clone):
 @pytest.mark.timeout(10)
 def test_not_responding(connection, config, empty_clone):
     def raise_exc(a, b, c, d=None):
-        raise requests.RequestException
+        raise PConnectionException
     connection.report = raise_exc
     connection.push_job('sleep_long')
     job = connection.fetch_job('token')

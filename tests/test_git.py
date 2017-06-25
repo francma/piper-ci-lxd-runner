@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from piper_lxd.models import git
-from piper_lxd.models.exceptions import CloneException
+from piper_lxd.models.errors import PCloneException
 
 
 def test_basic():
@@ -62,7 +62,7 @@ def test_fail_1():
     commit = 'e7a4739755a81a06242bc3249e36b133b3783f9b'
 
     with tempfile.TemporaryDirectory() as td:
-        with pytest.raises(CloneException):
+        with pytest.raises(PCloneException):
             git.clone(origin, branch, commit, Path(td))
 
 
@@ -72,5 +72,5 @@ def test_fail_2():
     commit = 'e7a4739755a8nonexistent49e36b133b3783f9b'
 
     with tempfile.TemporaryDirectory() as td:
-        with pytest.raises(CloneException):
+        with pytest.raises(PCloneException):
             git.clone(origin, branch, commit, Path(td))

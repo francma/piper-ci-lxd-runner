@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional
 
-from piper_lxd.models.exceptions import CloneException
+from piper_lxd.models.errors import PCloneException
 
 
 def clone(origin: str, branch: str, commit: str, destination: Path, ssh_keys_path: Optional[List[Path]]=None) -> None:
@@ -22,7 +22,7 @@ def clone(origin: str, branch: str, commit: str, destination: Path, ssh_keys_pat
     )
     out, err = process.communicate()
     if process.returncode != 0:
-        raise CloneException(err)
+        raise PCloneException(err)
 
     command = ['git', 'checkout', '-f', commit]
     process = subprocess.Popen(
@@ -35,4 +35,4 @@ def clone(origin: str, branch: str, commit: str, destination: Path, ssh_keys_pat
     )
     out, err = process.communicate()
     if process.returncode != 0:
-        raise CloneException(err)
+        raise PCloneException(err)

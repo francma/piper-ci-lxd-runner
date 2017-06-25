@@ -6,15 +6,13 @@ import tempfile
 from pathlib import Path
 
 import pylxd
-import pylxd.exceptions
-import requests
 
 from piper_lxd.models.script import Script
 from piper_lxd.models.connection import Connection
 from piper_lxd.models.config import LxdConfig
 from piper_lxd.models import git
 from piper_lxd.models.job import Job, RequestJobStatus, ResponseJobStatus
-from piper_lxd.models.exceptions import StopException, CloneException
+from piper_lxd.models.errors import PStopException, PConnectionException, PScriptException
 
 
 LOG = logging.getLogger('piper-lxd')
@@ -26,14 +24,12 @@ def _catch(func):
         self = args[0]
         try:
             func(*args, **kwargs)
-        except requests.RequestException:
-            LOG.warning('Failed to report status')
-        except pylxd.exceptions.LXDAPIException as e:
+        except PConnectionException as e:
+            LOG.error(str(e))
+        except PScriptException as e:
             self._report_status(self._job.secret, RequestJobStatus.ERROR)
             LOG.error(str(e))
-        except CloneException:
-            self._report_status(self._job.secret, RequestJobStatus.ERROR)
-        except StopException:
+        except PStopException:
             LOG.debug('Received status != ResponseJobStatus.OK from PiperCore, stopping container')
 
     return wrapped
@@ -72,6 +68,6 @@ class Executor(multiprocessing.Process):
     def _report_status(self, status: RequestJobStatus, data=None) -> ResponseJobStatus:
         response = self._connection.report(self._job.secret, status, data)
         if response is not ResponseJobStatus.OK:
-            raise StopException
+            raise PStopException
 
         return response

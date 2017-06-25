@@ -1,18 +1,18 @@
 from time import sleep
 from io import StringIO
 import uuid
-import logging
 from typing import List, Optional
 from datetime import timedelta
 from pathlib import Path
 
 import pylxd
-import pylxd.exceptions
+from pylxd.exceptions import LXDAPIException
 from ws4py.client import WebSocketBaseClient
 from ws4py.manager import WebSocketManager
 import ws4py.messaging
 
 from piper_lxd.models.job import Job
+from piper_lxd.models.errors import PScriptException
 
 
 class BufferHandler:
@@ -68,9 +68,9 @@ class Script:
 
     def __enter__(self):
         self._container = None
-        container_name = 'piper' + uuid.uuid4().hex
+        self._container_name = 'piper' + uuid.uuid4().hex
         container_config = {
-            'name': container_name,
+            'name': self._container_name,
             'profiles': self._lxd_profiles,
             'source': self._job.lxd_source,
             'devices': {
@@ -82,8 +82,15 @@ class Script:
             }
         }
 
-        self._container = self._lxd_client.containers.create(container_config, wait=True)
-        self._container.start(wait=True)
+        try:
+            self._container = self._lxd_client.containers.create(container_config, wait=True)
+        except LXDAPIException as e:
+            raise PScriptException('Failed to create LXD container. Raw: ' + str(e))
+
+        try:
+            self._container.start(wait=True)
+        except LXDAPIException as e:
+            raise PScriptException('Failed to start LXD container. Raw: ' + str(e))
         env = {k: str(v) for k, v in self._job.env.items()}
         config = {
             'command': ['/bin/ash', '-c', self._job.script],
@@ -91,7 +98,11 @@ class Script:
             'interactive': False,
             'environment': env,
         }
-        response = self._lxd_client.api.containers[container_name].exec.post(json=config)
+
+        try:
+            response = self._lxd_client.api.containers[self._container_name].exec.post(json=config)
+        except LXDAPIException as e:
+            raise PScriptException('Failed to execute command. Raw: ' + str(e))
 
         fds = response.json()['metadata']['metadata']['fds']
         self.operation_id = response.json()['operation'].split('/')[-1]
@@ -123,10 +134,13 @@ class Script:
         if self._container is not None:
             try:
                 self._container.stop(wait=True)
-            except pylxd.exceptions.LXDAPIException as e:
-                logging.warning(e)
+            except pylxd.exceptions.LXDAPIException:
+                pass
 
-            self._container.delete()
+            try:
+                self._container.delete()
+            except pylxd.exceptions.LXDAPIException as e:
+                raise PScriptException('Failed to delete LXD container "{}". Raw: '.format(self._container_name) + str(e))
 
     def poll(self, timeout: timedelta) -> str:
         while timeout > timedelta(0):

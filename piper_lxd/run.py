@@ -5,12 +5,13 @@ import time
 from pathlib import Path
 import multiprocessing
 
-import requests
 import yaml
-from piper_lxd.models.executor import Executor
+from pykwalify.errors import SchemaError
 
+from piper_lxd.models.executor import Executor
 from piper_lxd.models.config import Config
 from piper_lxd.models.connection import Connection
+from piper_lxd.models.exceptions import PConnectionError
 
 LOG = logging.getLogger('piper-lxd')
 
@@ -34,12 +35,14 @@ def main() -> None:
             time.sleep(config.runner.interval.total_seconds())
             continue
 
+        job = None
         try:
             job = connection.fetch_job(config.runner.token)
-        except requests.exceptions.ConnectionError as e:
+        except PConnectionError as e:
             LOG.warning('Job fetch from failed: {}'.format(e))
-            time.sleep(config.runner.interval.total_seconds())
-            continue
+        except SchemaError as e:
+            LOG.warning('Fetched Job has invalid schema: {}'.format(e))
+
         if job is None:
             LOG.debug('No job available')
             time.sleep(config.runner.interval.total_seconds())
