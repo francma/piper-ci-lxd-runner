@@ -140,7 +140,8 @@ class Script:
             try:
                 self._container.delete()
             except pylxd.exceptions.LXDAPIException as e:
-                raise PScriptException('Failed to delete LXD container "{}". Raw: '.format(self._container_name) + str(e))
+                message = 'Failed to delete LXD container "{}". Raw: '.format(self._container_name) + str(e)
+                raise PScriptException(message)
 
     def poll(self, timeout: timedelta) -> str:
         while timeout > timedelta(0):
