@@ -6,7 +6,7 @@ import json
 
 from piper_lxd.models.connection import Connection
 from piper_lxd.models.job import RequestJobStatus, ResponseJobStatus
-from piper_lxd.models.errors import PConnectionException, PConnectionInvalidResponseError, PConnectionRequestError
+from piper_lxd.models.errors import PConnectionInvalidResponseError, PConnectionRequestError
 
 
 def response_error(env, start_response):
@@ -52,6 +52,13 @@ def response_valid_status(env, start_response):
     return [json.dumps({'status': ResponseJobStatus.OK.value}).encode()]
 
 
+def server(responses, lock):
+    httpd = make_server('', 9999, lambda x, y: responses.pop(0)(x, y))
+    lock.release()
+    while len(responses):
+        httpd.handle_request()
+
+
 def test_one():
     lock = Lock()
     lock.acquire()
@@ -70,13 +77,7 @@ def test_one():
         response_valid_job,
     ]
 
-    def server(responses):
-        with make_server('', 9999, lambda x, y: responses.pop(0)(x, y)) as httpd:
-            lock.release()
-            while len(responses):
-                httpd.handle_request()
-
-    th = Thread(target=server, args=(responses,))
+    th = Thread(target=server, args=(responses, lock))
     th.start()
     lock.acquire()
 
@@ -122,6 +123,3 @@ def test_one():
     connection.fetch_job('token')
 
     th.join()
-
-
-
