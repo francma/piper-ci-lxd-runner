@@ -28,6 +28,7 @@ class Connection:
         url = self._fetch_job_url(token)
         try:
             response = requests.get(url, timeout=self._timeout.total_seconds())
+            response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise PConnectionRequestError(str(e))
 
@@ -35,7 +36,7 @@ class Connection:
             return None
 
         if response.status_code != HTTPStatus.OK:
-            raise PConnectionInvalidResponseError('Expected {}, got {}.'.format(HTTPStatus.OK, response.status_code))
+            raise PConnectionRequestError('Expected {}, got {}.'.format(HTTPStatus.OK, response.status_code))
 
         try:
             js = response.json()
@@ -62,16 +63,17 @@ class Connection:
                 data=log.encode() if log else None,
                 timeout=self._timeout.total_seconds()
             )
+            response.raise_for_status()
         except requests.exceptions.RequestException as e:
             raise PConnectionRequestError(e)
+
+        if response.status_code != HTTPStatus.OK:
+            raise PConnectionRequestError('Expected {}, got {}.'.format(HTTPStatus.OK, response.status_code))
 
         try:
             js = response.json()
         except ValueError:
             raise PConnectionInvalidResponseError('Response is not valid JSON')
-
-        if response.status_code != HTTPStatus.OK:
-            raise PConnectionInvalidResponseError('Expected {}, got {}.'.format(HTTPStatus.OK, response.status_code))
 
         try:
             response_status = ResponseJobStatus[js['status']]
