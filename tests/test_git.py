@@ -2,11 +2,13 @@ import tempfile
 import os
 import subprocess
 from pathlib import Path
+import pytest
 
 from piper_lxd.models import git
+from piper_lxd.models.errors import PCloneException
 
 
-def test_basic_clone():
+def test_basic():
     origin = 'https://github.com/francma/piper-ci-test-repo.git'
     branch = 'master'
     commit = 'e7a4739755a81a06242bc3249e36b133b3783f9b'
@@ -29,7 +31,7 @@ def test_basic_clone():
         assert sorted(['README.md', '.git']) == sorted(os.listdir(cwd))
 
 
-def test_clone_with_keys():
+def test_with_keys():
     origin = 'git@github.com:francma/piper-ci-test-repo.git'
     branch = 'master'
     commit = '09d13744b731539507bf7071f2e444aeba01cbc5'
@@ -52,3 +54,23 @@ def test_clone_with_keys():
         assert process.returncode == 0
         assert out.decode().strip() == '82a5fe97f68c66db1ba232338122b715dc776610'
         assert sorted(['README.md', '.git']) == sorted(os.listdir(cwd))
+
+
+def test_fail_1():
+    origin = 'https://github.com/francma/NONEXISTENT.git'
+    branch = 'master'
+    commit = 'e7a4739755a81a06242bc3249e36b133b3783f9b'
+
+    with tempfile.TemporaryDirectory() as td:
+        with pytest.raises(PCloneException):
+            git.clone(origin, branch, commit, Path(td))
+
+
+def test_fail_2():
+    origin = 'https://github.com/francma/piper-ci-test-repo.git'
+    branch = 'master'
+    commit = 'e7a4739755a8nonexistent49e36b133b3783f9b'
+
+    with tempfile.TemporaryDirectory() as td:
+        with pytest.raises(PCloneException):
+            git.clone(origin, branch, commit, Path(td))
