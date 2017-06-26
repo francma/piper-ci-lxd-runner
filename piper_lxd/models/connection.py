@@ -59,7 +59,7 @@ class Connection:
             response = requests.post(
                 url,
                 headers={'content-type': 'text/plain'},
-                data=log.encode(),
+                data=log.encode() if log else None,
                 timeout=self._timeout.total_seconds()
             )
         except requests.exceptions.RequestException as e:
