@@ -21,10 +21,9 @@ jobs:
   include:
     - &test-lxd
       sudo: required
-      env: TOXENV=py
+      env: TOXENV=py,coveralls
       python: "3.5"
       stage: LXD
       before_install: bash setup_lxd_ubuntu.sh
-      after_success: coveralls
     - <<: *test-lxd
       python: "3.6"

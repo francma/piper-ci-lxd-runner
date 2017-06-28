@@ -2,4 +2,3 @@ pytest>=3
 pytest-timeout
 pytest-cov
 tox
-coveralls
