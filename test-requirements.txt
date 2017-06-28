@@ -1,6 +1,5 @@
-pytest
+pytest>=3
 pytest-timeout
 pytest-cov
-mypy
-flake8
+tox
 coveralls

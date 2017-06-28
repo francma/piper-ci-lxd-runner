@@ -30,9 +30,6 @@ setup(
           'piper-lxd = piper_lxd.run:main'
         ]
     },
-    setup_requires=[
-        'pytest-runner',
-    ],
     install_requires=[
         'ws4py',
         'requests',
@@ -40,9 +37,14 @@ setup(
         'pyyaml',
         'pykwalify',
     ],
-    tests_require=[
-        'pytest',
-        'pytest-timeout',
-        'pytest-cov',
-    ],
+    extras_require={
+        'dev': [
+            'mypy',
+            'tox',
+            'coveralls',
+            'pytest>=3',
+            'pytest-timeout',
+            'pytest-cov',
+        ],
+    },
 )
