@@ -26,7 +26,7 @@ see `/config.example.yml` and `/piper_lxd/schemas/config.py`
 
 1. Install Python virtual environment
 
-   `pip3 install virtualenv`
+   `pip3 install virtualenv virtualenvwrapper`
 
 2. Clone repository
 
@@ -36,15 +36,11 @@ see `/config.example.yml` and `/piper_lxd/schemas/config.py`
 
    `cd piper-ci-lxd-runner`
 
-4. Create new virtual environment named `venv_piper_lxd`
+4. Create new virtual environment named `piper-lxd`
 
-   `virtualenv venv_piper_lxd`
+   `mkvirtualenv piper-lxd`
 
-5. Activate it
-
-   `source venv_piper_lxd/bin/activate`
-
-6. Install dependencies
+5. Install dependencies
 
    `pip install -e ".[dev]"`
 
