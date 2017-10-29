@@ -12,17 +12,14 @@ setup(
     author='Martin Franc',
     author_email='francma6@fit.cvut.cz',
     keywords='lxd,ci,runner',
-    license='Public Domain',
     url='https://github.com/francma/piper-ci-lxd-runner',
     classifiers=[
         'Intended Audience :: Developers',
-        'License :: Public Domain',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
-        'Topic :: Software Development :: Libraries',
     ],
     zip_safe=False,
     entry_points={
@@ -31,14 +28,19 @@ setup(
         ]
     },
     install_requires=[
+        # pylxd output streaming
         'ws4py',
+        # requests to piper-core
         'requests',
         'pylxd',
+        # yaml config file
         'pyyaml',
+        # JSON schema validation
         'pykwalify',
     ],
     extras_require={
         'dev': [
+            # type checking
             'mypy',
             'tox',
             'coveralls',

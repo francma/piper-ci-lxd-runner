@@ -5,6 +5,14 @@
 
 Runner for [piper-ci-core](https://github.com/francma/piper-ci-driver) using Linux kernel containment features.
 
+## Table of contents
+
+- [Requirements](#requirements-non-pipy)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Running](#running)
+- [Developer guide](#developer-guide)
+
 ## Requirements (non-pipy)
 
 - [lxd](https://github.com/lxc/lxd)
@@ -14,61 +22,71 @@ Runner for [piper-ci-core](https://github.com/francma/piper-ci-driver) using Lin
 
 ## Installation
 
-`pip install git+https://github.com/francma/piper-ci-lxd-runner.git`
+1. [Install project dependencies (non-pipy)](#requirements-non-pipy)
+
+2. Install project from github
+
+    `pip install git+https://github.com/francma/piper-ci-lxd-runner.git`
+    
+3. Make sure LXD is properly configured 
+
+    1. LXD needs to be set to listen on HTTPs (if you did not enabled this during `lxd init`)
+    
+        `lxc config set core.https_address [::]`
+    
+    2. Generate certificate and key and make them trusted by LXD
+    
+        ```
+        openssl genrsa 2048 > client.key
+        openssl req -new -x509 -nodes -sha1 -days 365 -key client.key -out client.crt -subj "/C=CZ/ST=Czech Republic/L=Prague/O=TEST/OU=IT Department/CN=example.com"
+        lxc config trust add client.crt
+        mkdir ~/.config/lxc-client
+        mv client.* ~/.config/lxc-client/.
+        ```
+        
+    3. Download some images to be used by LXD
+    
+        `lxc image copy images:alpine/3.5 local: --copy-aliases`
 
 ## Configuration
 
-see `/config.example.yml` and `/piper_lxd/schemas/config.py`
+1. Copy example configuration
+
+    `cp config.example.yml config.yml`
+
+2. Edit your config to fit your needs
+
+    `vim /config.example.yml`
+
+## Running
+
+`piper-lxd [path to your config file]`
 
 ## Developer guide
 
 ### Setup Python environment
 
-1. Install Python virtual environment
+1. Install Python virtual environment (via pip or your distribution package manager)
 
    `pip3 install virtualenv virtualenvwrapper`
 
-2. Clone repository
-
-   `git clone https://github.com/francma/piper-ci-lxd-runner.git`
-
-3. Change working directory into project
-
-   `cd piper-ci-lxd-runner`
-
-4. Create new virtual environment named `piper-lxd`
+2. Create new virtual environment named `piper-lxd`
 
    `mkvirtualenv piper-lxd`
+   
+3. [Install project](#installation)
 
-5. Install dependencies
+4. Install dev dependencies
 
    `pip install -e ".[dev]"`
+   
+5. Deactivate virtualenv
 
-### Setup LXD
+    `deactivate`
+    
+6. Activate virtualenv
 
-1. Run LXD initialization
-
-   `lxd init`
-
-2. Configure `piper-ci` LXD profile
-
-   `profile copy default piper-ci`
-
-   `...`
-
-3. Setup authentication
-
-   `openssl genrsa 2048 > client.key`
-
-   `openssl req -new -x509 -nodes -sha1 -days 365 -key client.key -out client.crt -subj "/C=CZ/ST=Czech Republic/L=Prague/O=TEST/OU=IT Department/CN=example.com`
-
-   `lxc config trust add client.crt`
-
-4. Move keys
-
-   `mkdir -p ~/.config/lxc-client`
-
-   `mv client.* ~/.config/lxc-client/.`
+    `workon piper-lxd`
 
 ### Tests
 
