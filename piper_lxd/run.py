@@ -11,7 +11,7 @@ from pykwalify.errors import SchemaError
 from piper_lxd.models.executor import Executor
 from piper_lxd.models.config import Config
 from piper_lxd.models.connection import Connection
-from piper_lxd.models.exceptions import PConnectionError
+from piper_lxd.models.errors import PConnectionException
 
 LOG = logging.getLogger('piper-lxd')
 
@@ -38,7 +38,7 @@ def main() -> None:
         job = None
         try:
             job = connection.fetch_job(config.runner.token)
-        except PConnectionError as e:
+        except PConnectionException as e:
             LOG.warning('Job fetch from failed: {}'.format(e))
         except SchemaError as e:
             LOG.warning('Fetched Job has invalid schema: {}'.format(e))
