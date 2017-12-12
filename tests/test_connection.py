@@ -16,7 +16,7 @@ def response_error(env, start_response):
 
 
 def response_empty(env, start_response):
-    start_response('204 No Content', [])
+    start_response('200 OK', [])
 
     return []
 

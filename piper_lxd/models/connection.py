@@ -32,11 +32,11 @@ class Connection:
         except requests.exceptions.RequestException as e:
             raise PConnectionRequestError(str(e))
 
-        if not response.content:
-            return None
-
         if response.status_code != HTTPStatus.OK:
             raise PConnectionRequestError('Expected {}, got {}.'.format(HTTPStatus.OK, response.status_code))
+
+        if not response.content:
+            return None
 
         try:
             js = response.json()
