@@ -93,7 +93,7 @@ class Script:
             raise PScriptException('Failed to start LXD container. Raw: ' + str(e))
         env = {k: str(v) for k, v in self._job.env.items()}
         config = {
-            'command': ['/bin/ash', '-c', self._job.script],
+            'command': ['/bin/sh', '-c', self._job.script],
             'wait-for-websocket': True,
             'interactive': False,
             'environment': env,
