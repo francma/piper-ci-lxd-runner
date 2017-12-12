@@ -32,7 +32,7 @@ class Connection:
         except requests.exceptions.RequestException as e:
             raise PConnectionRequestError(str(e))
 
-        if response.status_code == HTTPStatus.NO_CONTENT:
+        if not response.content:
             return None
 
         if response.status_code != HTTPStatus.OK:
