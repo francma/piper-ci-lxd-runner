@@ -52,7 +52,7 @@ class Executor(multiprocessing.Process):
 
         with tempfile.TemporaryDirectory() as td:
             path = Path(td)
-            git.clone(self._job.origin, self._job.branch, self._job.commit, path, [self._job.private_key])
+            git.clone(self._job.origin, self._job.branch, self._job.commit, path)
 
             with Script(self._job, path, self._client, self._lxd_config.profiles) as script:
                 while script.status == 103:  # running

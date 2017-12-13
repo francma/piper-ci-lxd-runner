@@ -1,16 +1,10 @@
 import subprocess
 from pathlib import Path
-from typing import List, Optional
 
 from piper_lxd.models.errors import PCloneException
 
 
-def clone(origin: str, branch: str, commit: str, destination: Path, ssh_keys_path: Optional[List[Path]]=None) -> None:
-    env = dict()
-    if ssh_keys_path is not None:
-        paths = [str(x.expanduser()) for x in ssh_keys_path]
-        env['GIT_SSH_COMMAND'] = 'ssh -i ' + ' -i '.join(paths) + ' -F /dev/null'
-
+def clone(origin: str, branch: str, commit: str, destination: Path) -> None:
     command = ['git', 'clone', '--recursive', '--branch', branch, origin, '.']
     process = subprocess.Popen(
         command,
@@ -18,7 +12,6 @@ def clone(origin: str, branch: str, commit: str, destination: Path, ssh_keys_pat
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         start_new_session=True,
-        env=env
     )
     out, err = process.communicate()
     if process.returncode != 0:
@@ -31,7 +24,6 @@ def clone(origin: str, branch: str, commit: str, destination: Path, ssh_keys_pat
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         start_new_session=True,
-        env=env
     )
     out, err = process.communicate()
     if process.returncode != 0:
