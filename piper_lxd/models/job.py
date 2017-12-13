@@ -1,5 +1,6 @@
 from typing import Dict, Any, List
 from enum import Enum
+from pathlib import Path
 
 from pykwalify.core import Core as Validator
 
@@ -86,6 +87,7 @@ class Job:
         self._branch = job['repository']['branch']
         self._commit = job['repository']['commit']
         self._cwd = '/piper'
+        self._private_key = Path(job['repository']['private_key']) if 'private_key' in job['repository'] else None
 
         self._env = {k: str(v) for k, v in self._env.items()}
 
@@ -116,6 +118,10 @@ class Job:
     @property
     def env(self) -> Dict[str, Any]:
         return self._env
+
+    @property
+    def private_key(self) -> Path:
+        return self._private_key
 
     @property
     def lxd_source(self) -> Dict[str, str]:

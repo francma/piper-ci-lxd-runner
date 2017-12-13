@@ -47,6 +47,9 @@ schema = {
         },
         "commit": {
           "type": "str"
+        },
+        "private_key": {
+          "type": "str",
         }
       }
     }
