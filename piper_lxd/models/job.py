@@ -27,7 +27,7 @@ class Job:
 
     COMMAND_WAIT_FOR_NETWORK = '\n'.join([
         'i=1; d=0',
-        'while [ $i -le 50 ]; do',
+        'while [ $i -le 300 ]; do',
         'i=$(($i + 1))',
         'if [ -z "$(ip route get 8.8.8.8 2>/dev/null | grep -v unreachable)" ]; then',
         'sleep 0.1; continue',
