@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from enum import Enum
 from pathlib import Path
 
@@ -120,7 +120,7 @@ class Job:
         return self._env
 
     @property
-    def private_key(self) -> Path:
+    def private_key(self) -> Optional[Path]:
         return self._private_key
 
     @property
